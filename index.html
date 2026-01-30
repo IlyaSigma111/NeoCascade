@@ -20,7 +20,7 @@
             <div class="sidebar-header">
                 <h1><i class="fas fa-water"></i> NeoCascade</h1>
                 <div class="user-profile">
-                    <img src="https://ui-avatars.com/api/?name=User&background=64FFDA&color=0A192F" alt="Avatar" id="user-avatar">
+                    <img src="https://ui-avatars.com/api/?name=Гость&background=64FFDA&color=0A192F" alt="Avatar" id="user-avatar">
                     <div class="user-info">
                         <span id="username">Гость</span>
                         <small id="user-status" class="offline">не в сети</small>
@@ -33,19 +33,18 @@
 
             <div class="search-bar">
                 <i class="fas fa-search"></i>
-                <input type="text" id="search-contacts" placeholder="Поиск контактов...">
+                <input type="text" id="search-contacts" placeholder="Поиск контактов..." disabled>
             </div>
 
             <div class="contacts-list">
-                <!-- Контакты будут загружаться динамически -->
-                <div class="no-contacts">Загружаем контакты...</div>
+                <div class="no-contacts">Войдите, чтобы увидеть контакты</div>
             </div>
 
             <div class="sidebar-footer">
-                <button class="btn-new-chat">
+                <button class="btn-new-chat" id="new-chat-btn" disabled>
                     <i class="fas fa-plus"></i> Новый чат
                 </button>
-                <button class="btn-voice-chat" id="voice-chat-btn">
+                <button class="btn-voice-chat" id="voice-chat-btn" disabled>
                     <i class="fas fa-phone-alt"></i> Голосовой чат
                 </button>
             </div>
@@ -61,41 +60,39 @@
                     </div>
                     <div class="partner-info">
                         <h3 id="chat-title">Выберите чат</h3>
-                        <p id="chat-status">начните общение</p>
+                        <p id="chat-status">войдите в систему</p>
                     </div>
                 </div>
                 <div class="chat-actions">
-                    <button class="btn-action"><i class="fas fa-phone"></i></button>
-                    <button class="btn-action"><i class="fas fa-video"></i></button>
-                    <button class="btn-action"><i class="fas fa-ellipsis-v"></i></button>
+                    <button class="btn-action" disabled><i class="fas fa-phone"></i></button>
+                    <button class="btn-action" disabled><i class="fas fa-video"></i></button>
+                    <button class="btn-action" disabled><i class="fas fa-ellipsis-v"></i></button>
                 </div>
             </div>
 
             <div class="messages-container" id="messages-container">
-                <!-- Сообщения будут загружаться здесь -->
                 <div class="welcome-message">
                     <h2><i class="fas fa-water"></i> Добро пожаловать в NeoCascade!</h2>
-                    <p>Выберите контакт для начала общения</p>
+                    <p>Войдите в систему, чтобы начать общение</p>
                     <p class="hint">Сообщения появляются как водопад - плавно и непрерывно</p>
                 </div>
             </div>
 
             <div class="message-input-area">
                 <div class="input-tools">
-                    <button class="btn-tool" id="emoji-btn"><i class="fas fa-smile"></i></button>
-                    <button class="btn-tool" id="image-btn"><i class="fas fa-image"></i></button>
-                    <!-- Новая кнопка для объявлений -->
-                    <button class="btn-tool" id="announcement-btn" title="Создать объявление">
+                    <button class="btn-tool" disabled><i class="fas fa-smile"></i></button>
+                    <button class="btn-tool" disabled><i class="fas fa-image"></i></button>
+                    <button class="btn-tool" id="announcement-btn" title="Создать объявление" disabled>
                         <i class="fas fa-bullhorn"></i>
                     </button>
                 </div>
                 <div class="message-input-wrapper">
-                    <input type="text" id="message-input" placeholder="Введите сообщение..." disabled>
+                    <input type="text" id="message-input" placeholder="Войдите, чтобы отправлять сообщения" disabled>
                     <button class="btn-send" id="send-btn" disabled>
                         <i class="fas fa-paper-plane"></i>
                     </button>
                 </div>
-                <button class="btn-voice"><i class="fas fa-microphone"></i></button>
+                <button class="btn-voice" disabled><i class="fas fa-microphone"></i></button>
             </div>
         </div>
 
@@ -106,7 +103,6 @@
                 <button class="btn-close-voice" id="close-voice-btn"><i class="fas fa-times"></i></button>
             </div>
             <div class="voice-participants" id="voice-participants">
-                <!-- Участники голосового чата -->
                 <div class="no-participants">Нет участников</div>
             </div>
             <div class="voice-controls">
@@ -150,9 +146,19 @@
                     <i class="fas fa-lock"></i>
                 </div>
                 
-                <button class="btn-auth" id="login-btn">
-                    <i class="fas fa-sign-in-alt"></i> Войти
-                </button>
+                <div class="login-options">
+                    <button class="btn-auth google-btn" id="google-login-btn">
+                        <i class="fab fa-google"></i> Войти через Google
+                    </button>
+                    
+                    <div class="divider">
+                        <span>или</span>
+                    </div>
+                    
+                    <button class="btn-auth" id="email-login-btn">
+                        <i class="fas fa-sign-in-alt"></i> Войти по Email
+                    </button>
+                </div>
                 
                 <div class="auth-footer">
                     <p>Нет аккаунта? <a href="#" class="switch-to-register">Зарегистрироваться</a></p>
@@ -189,14 +195,27 @@
                     <i class="fas fa-lock"></i>
                 </div>
                 
-                <button class="btn-auth" id="register-btn">
-                    <i class="fas fa-user-plus"></i> Зарегистрироваться
-                </button>
+                <div class="login-options">
+                    <button class="btn-auth google-btn" id="google-register-btn">
+                        <i class="fab fa-google"></i> Регистрация через Google
+                    </button>
+                    
+                    <div class="divider">
+                        <span>или</span>
+                    </div>
+                    
+                    <button class="btn-auth" id="email-register-btn">
+                        <i class="fas fa-user-plus"></i> Зарегистрироваться по Email
+                    </button>
+                </div>
                 
                 <div class="auth-footer">
                     <p>Уже есть аккаунт? <a href="#" class="switch-to-login">Войти</a></p>
                 </div>
             </div>
+            
+            <div class="error-message" id="error-message"></div>
+            <div class="success-message" id="success-message"></div>
             
             <p class="login-note">
                 Ваши сообщения сохраняются в облаке.
