@@ -37,6 +37,17 @@
             </div>
 
             <div class="contacts-list">
+                <!-- Общий чат -->
+                <div class="chat-item general-chat contact" data-chat-type="group">
+                    <div class="contact-avatar">
+                        <img src="https://ui-avatars.com/api/?name=Общий&background=7C3AED&color=fff" alt="Общий чат">
+                    </div>
+                    <div class="contact-info">
+                        <div class="contact-name">Общий чат</div>
+                        <div class="last-message">Групповое общение</div>
+                    </div>
+                </div>
+                <!-- Контакты будут загружены здесь -->
                 <div class="no-contacts">Войдите, чтобы увидеть контакты</div>
             </div>
 
@@ -55,11 +66,11 @@
             <div class="chat-header">
                 <div class="chat-partner">
                     <div class="partner-avatar">
-                        <img src="https://ui-avatars.com/api/?name=Друг&background=7C3AED&color=fff" alt="Avatar">
+                        <img src="https://ui-avatars.com/api/?name=Общий&background=7C3AED&color=fff" alt="Avatar">
                         <span class="status-indicator offline"></span>
                     </div>
                     <div class="partner-info">
-                        <h3 id="chat-title">Выберите чат</h3>
+                        <h3 id="chat-title">Общий чат</h3>
                         <p id="chat-status">войдите в систему</p>
                     </div>
                 </div>
@@ -82,9 +93,7 @@
                 <div class="input-tools">
                     <button class="btn-tool" disabled><i class="fas fa-smile"></i></button>
                     <button class="btn-tool" disabled><i class="fas fa-image"></i></button>
-                    <button class="btn-tool" id="announcement-btn" title="Создать объявление" disabled>
-                        <i class="fas fa-bullhorn"></i>
-                    </button>
+                    <button class="btn-tool" disabled><i class="fas fa-paperclip"></i></button>
                 </div>
                 <div class="message-input-wrapper">
                     <input type="text" id="message-input" placeholder="Войдите, чтобы отправлять сообщения" disabled>
@@ -221,38 +230,6 @@
                 Ваши сообщения сохраняются в облаке.
                 При повторном посещении вы автоматически войдете в чат.
             </p>
-        </div>
-    </div>
-
-    <!-- Модальное окно для создания объявлений -->
-    <div class="modal announcement-modal" id="announcement-modal">
-        <div class="modal-content">
-            <h3><i class="fas fa-bullhorn"></i> Создать объявление</h3>
-            
-            <div class="announcement-form">
-                <input type="text" 
-                       id="announcement-title" 
-                       placeholder="Заголовок объявления"
-                       maxlength="50">
-                
-                <textarea id="announcement-text" 
-                          placeholder="Текст объявления (опционально)"
-                          maxlength="200"></textarea>
-                
-                <input type="url" 
-                       id="announcement-link" 
-                       placeholder="https://ссылка-на-ресурс.com"
-                       required>
-                
-                <div class="announcement-buttons">
-                    <button class="btn-cancel" id="cancel-announcement">
-                        <i class="fas fa-times"></i> Отмена
-                    </button>
-                    <button class="btn-announce" id="send-announcement">
-                        <i class="fas fa-paper-plane"></i> Опубликовать
-                    </button>
-                </div>
-            </div>
         </div>
     </div>
 
