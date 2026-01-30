@@ -120,53 +120,88 @@
         </div>
     </div>
 
-    <!-- Модальное окно Google входа -->
-    <div class="modal" id="google-login-modal">
+    <!-- Модальное окно входа/регистрации -->
+    <div class="modal" id="auth-modal">
         <div class="modal-content">
             <h2><i class="fas fa-water"></i> NeoCascade</h2>
-            <div class="welcome-message">
-                <div class="welcome-icon">
-                    <i class="fas fa-comments"></i>
-                </div>
-                <h3>Добро пожаловать!</h3>
-                <p>Войдите через Google чтобы начать общение</p>
-                
-                <button class="btn-login-google" id="google-login-btn">
-                    <i class="fab fa-google"></i> Войти через Google
-                </button>
-                
-                <p class="login-note">
-                    После входа вы сможете выбрать себе никнейм.
-                    При повторном посещении вы автоматически войдете в чат.
-                </p>
-            </div>
-        </div>
-    </div>
-
-    <!-- Модальное окно выбора ника -->
-    <div class="modal" id="nickname-modal">
-        <div class="modal-content">
-            <div class="user-preview">
-                <img id="preview-avatar" src="" alt="Аватар">
-                <div id="preview-email"></div>
+            
+            <div class="auth-tabs">
+                <button class="auth-tab active" data-tab="login">Вход</button>
+                <button class="auth-tab" data-tab="register">Регистрация</button>
             </div>
             
-            <h3>Выберите ваш никнейм</h3>
-            <p>Это имя будет отображаться в чате</p>
-            
-            <div class="nickname-form">
-                <input type="text" id="nickname-input" placeholder="КрутойНик123" maxlength="20">
-                <div class="nickname-suggestions">
-                    <span>Примеры: </span>
-                    <button class="suggestion-btn" data-nick="КиберПутник">КиберПутник</button>
-                    <button class="suggestion-btn" data-nick="НеонВолна">НеонВолна</button>
-                    <button class="suggestion-btn" data-nick="КосмоЧаттер">КосмоЧаттер</button>
+            <!-- Форма входа -->
+            <div class="auth-form active" id="login-form">
+                <div class="welcome-message">
+                    <div class="welcome-icon">
+                        <i class="fas fa-comments"></i>
+                    </div>
+                    <h3>С возвращением!</h3>
+                    <p>Войдите в свой аккаунт</p>
                 </div>
                 
-                <button class="btn-save-nickname" id="save-nickname-btn">
-                    <i class="fas fa-check"></i> Сохранить и войти
+                <div class="form-group">
+                    <input type="email" id="login-email" placeholder="Email" required>
+                    <i class="fas fa-envelope"></i>
+                </div>
+                
+                <div class="form-group">
+                    <input type="password" id="login-password" placeholder="Пароль" required>
+                    <i class="fas fa-lock"></i>
+                </div>
+                
+                <button class="btn-auth" id="login-btn">
+                    <i class="fas fa-sign-in-alt"></i> Войти
                 </button>
+                
+                <div class="auth-footer">
+                    <p>Нет аккаунта? <a href="#" class="switch-to-register">Зарегистрироваться</a></p>
+                </div>
             </div>
+            
+            <!-- Форма регистрации -->
+            <div class="auth-form" id="register-form">
+                <div class="welcome-message">
+                    <div class="welcome-icon">
+                        <i class="fas fa-user-plus"></i>
+                    </div>
+                    <h3>Создайте аккаунт</h3>
+                    <p>Присоединяйтесь к NeoCascade</p>
+                </div>
+                
+                <div class="form-group">
+                    <input type="text" id="register-nickname" placeholder="Никнейм" required maxlength="20">
+                    <i class="fas fa-user"></i>
+                </div>
+                
+                <div class="form-group">
+                    <input type="email" id="register-email" placeholder="Email" required>
+                    <i class="fas fa-envelope"></i>
+                </div>
+                
+                <div class="form-group">
+                    <input type="password" id="register-password" placeholder="Пароль (минимум 6 символов)" required minlength="6">
+                    <i class="fas fa-lock"></i>
+                </div>
+                
+                <div class="form-group">
+                    <input type="password" id="register-confirm" placeholder="Подтвердите пароль" required>
+                    <i class="fas fa-lock"></i>
+                </div>
+                
+                <button class="btn-auth" id="register-btn">
+                    <i class="fas fa-user-plus"></i> Зарегистрироваться
+                </button>
+                
+                <div class="auth-footer">
+                    <p>Уже есть аккаунт? <a href="#" class="switch-to-login">Войти</a></p>
+                </div>
+            </div>
+            
+            <p class="login-note">
+                Ваши сообщения сохраняются в облаке.
+                При повторном посещении вы автоматически войдете в чат.
+            </p>
         </div>
     </div>
 
