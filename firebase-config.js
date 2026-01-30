@@ -2,10 +2,11 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
 import { getDatabase, ref, push, onValue, set, get, child } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 import { 
     getAuth, 
-    signInWithPopup,
-    GoogleAuthProvider,
+    createUserWithEmailAndPassword,
+    signInWithEmailAndPassword,
     onAuthStateChanged,
-    signOut 
+    signOut,
+    updateProfile
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
 // Конфигурация Firebase
@@ -25,7 +26,6 @@ const app = initializeApp(firebaseConfig);
 // Инициализация сервисов
 const database = getDatabase(app);
 const auth = getAuth(app);
-const googleProvider = new GoogleAuthProvider();
 
 // Экспорт всего необходимого
 export { 
@@ -37,8 +37,9 @@ export {
     get, 
     child, 
     auth, 
-    signInWithPopup, 
-    googleProvider, 
+    createUserWithEmailAndPassword,
+    signInWithEmailAndPassword,
     onAuthStateChanged, 
-    signOut 
+    signOut,
+    updateProfile
 };
