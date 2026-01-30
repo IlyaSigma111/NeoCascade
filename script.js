@@ -9,7 +9,6 @@ let currentUser = null;
 let currentChat = null;
 let currentChatType = 'group';
 let contacts = [];
-let messages = [];
 let onlineUsers = new Set();
 
 // Инициализация приложения
@@ -22,17 +21,6 @@ document.addEventListener('DOMContentLoaded', () => {
 // Инициализация
 function initApp() {
     console.log("Инициализация приложения...");
-    
-    // Запрашиваем разрешение на уведомления
-    if ("Notification" in window && Notification.permission === "default") {
-        setTimeout(() => {
-            Notification.requestPermission().then(permission => {
-                if (permission === "granted") {
-                    console.log("Разрешение на уведомления получено");
-                }
-            });
-        }, 2000);
-    }
     
     // Проверяем состояние аутентификации
     onAuthStateChanged(auth, async (user) => {
@@ -131,9 +119,6 @@ function setupEventListeners() {
 function showAuthModal() {
     console.log("Показ модального окна аутентификации");
     document.getElementById('auth-modal').style.display = 'flex';
-    // Сбрасываем форму входа
-    document.getElementById('login-email').value = '';
-    document.getElementById('login-password').value = '';
     hideAllMessages();
 }
 
@@ -147,17 +132,14 @@ function hideAuthModal() {
 function switchAuthTab(tabName) {
     console.log("Переключение на таб:", tabName);
     
-    // Обновляем активные табы
     document.querySelectorAll('.auth-tab').forEach(tab => {
         tab.classList.toggle('active', tab.dataset.tab === tabName);
     });
     
-    // Показываем соответствующую форму
     document.querySelectorAll('.auth-form').forEach(form => {
         form.classList.toggle('active', form.id === `${tabName}-form`);
     });
     
-    // Очищаем сообщения об ошибках
     hideAllMessages();
 }
 
@@ -199,28 +181,10 @@ async function handleGoogleLogin() {
         console.log("Успешный вход через Google:", user.email);
         
         hideAllMessages();
-        await checkAndUpdateUserInDatabase(user);
         
     } catch (error) {
         console.error('Ошибка входа через Google:', error.code, error.message);
-        
-        let errorMessage = 'Ошибка входа через Google. ';
-        
-        switch (error.code) {
-            case 'auth/popup-closed-by-user':
-                errorMessage = 'Вход отменен';
-                break;
-            case 'auth/popup-blocked':
-                errorMessage = 'Всплывающее окно заблокировано';
-                break;
-            case 'auth/unauthorized-domain':
-                errorMessage = 'Домен не авторизован для Google Sign-in';
-                break;
-            default:
-                errorMessage += 'Попробуйте еще раз';
-        }
-        
-        showError(errorMessage);
+        showError('Ошибка входа через Google');
     }
 }
 
@@ -231,7 +195,6 @@ async function handleEmailLogin() {
     
     console.log("Вход по Email:", email);
     
-    // Валидация
     if (!email || !password) {
         showError('Заполните все поля');
         return;
@@ -242,12 +205,8 @@ async function handleEmailLogin() {
     loginBtn.disabled = true;
     
     try {
-        const userCredential = await signInWithEmailAndPassword(auth, email, password);
-        const user = userCredential.user;
-        console.log("Успешный вход по Email:", user.email);
-        
+        await signInWithEmailAndPassword(auth, email, password);
         hideAllMessages();
-        // Не вызываем handleExistingUser здесь - это сделает onAuthStateChanged
         
     } catch (error) {
         console.error('Ошибка входа по Email:', error);
@@ -285,7 +244,6 @@ async function handleEmailRegister() {
     
     console.log("Регистрация по Email:", email, "Ник:", nickname);
     
-    // Валидация
     if (!nickname || !email || !password || !confirmPassword) {
         showError('Заполните все поля');
         return;
@@ -329,9 +287,6 @@ async function handleEmailRegister() {
         });
         
         showSuccess('Регистрация успешна! Выполняется вход...');
-        console.log("Пользователь сохранен в базе данных");
-        
-        // onAuthStateChanged автоматически вызовется после регистрации
         
     } catch (error) {
         console.error('Ошибка регистрации:', error);
@@ -390,7 +345,6 @@ async function handleExistingUser(firebaseUser, userData = null) {
         userData = await checkAndUpdateUserInDatabase(firebaseUser);
     }
     
-    // Устанавливаем currentUser ДО enableUI
     currentUser = {
         uid: firebaseUser.uid,
         displayName: userData.nickname || firebaseUser.displayName || firebaseUser.email || 'Аноним',
@@ -400,22 +354,11 @@ async function handleExistingUser(firebaseUser, userData = null) {
     
     console.log("Текущий пользователь установлен:", currentUser.displayName, "UID:", currentUser.uid);
     
-    // Обновляем профиль пользователя
     updateUserProfile();
-    
-    // Скрываем модальное окно входа
     hideAuthModal();
-    
-    // Загружаем контакты и чаты
     loadContacts();
-    
-    // Устанавливаем онлайн статус
     setupPresence(firebaseUser.uid);
-    
-    // Активируем интерфейс
     enableUI();
-    
-    // Перезагружаем общий чат
     loadGroupMessages();
 }
 
@@ -448,11 +391,11 @@ function loadGroupMessages() {
     const messagesRef = ref(database, `chats/general/messages`);
     const messagesContainer = document.getElementById('messages-container');
     
-    messages = [];
+    // Очищаем контейнер
+    messagesContainer.innerHTML = '';
     
     onValue(messagesRef, (snapshot) => {
         const data = snapshot.val();
-        messagesContainer.innerHTML = '';
         
         if (!data) {
             messagesContainer.innerHTML = `
@@ -471,8 +414,12 @@ function loadGroupMessages() {
         
         console.log("Загружено сообщений в общем чате:", messagesArray.length);
         
+        // Очищаем контейнер перед добавлением новых сообщений
+        messagesContainer.innerHTML = '';
+        
         messagesArray.forEach(message => {
-            addMessageToUI(message, message.senderId === currentUser?.uid, false, true);
+            const isSent = currentUser && message.senderId === currentUser.uid;
+            addMessageToUI(message, isSent, true);
         });
         
         scrollToBottom();
@@ -539,8 +486,6 @@ function enableUI() {
     document.getElementById('message-input').placeholder = 'Сообщение в общий чат...';
     document.getElementById('message-input').focus();
     
-    loadOnlineUsers();
-    
     console.log("Интерфейс активирован!");
 }
 
@@ -559,7 +504,6 @@ async function handleLogout() {
         currentUser = null;
         currentChat = null;
         contacts = [];
-        messages = [];
         
         resetUI();
         showAuthModal();
@@ -614,7 +558,7 @@ function resetUI() {
     
     document.querySelector('.btn-voice').disabled = true;
     
-    // Очищаем список контактов (но оставляем общий чат)
+    // Очищаем список контактов
     document.querySelector('.contacts-list').innerHTML = `
         <div class="chat-item general-chat contact" data-chat-type="group">
             <div class="contact-avatar">
@@ -628,7 +572,6 @@ function resetUI() {
         <div class="no-contacts">Войдите, чтобы увидеть контакты</div>
     `;
     
-    // Переустанавливаем обработчик для общего чата
     document.querySelector('.general-chat').addEventListener('click', () => selectGroupChat());
     
     document.querySelectorAll('.chat-item').forEach(item => {
@@ -664,7 +607,7 @@ function setupPresence(userId) {
 }
 
 // Загрузка контактов
-async function loadContacts() {
+function loadContacts() {
     console.log("Загрузка контактов для пользователя:", currentUser?.uid);
     
     const contactsRef = ref(database, 'users');
@@ -730,7 +673,6 @@ async function loadContacts() {
         
         contactsList.innerHTML = contactsHTML;
         
-        // Устанавливаем обработчики для контактов
         document.querySelectorAll('.contact[data-user-id]').forEach(contact => {
             contact.addEventListener('click', () => {
                 const userId = contact.dataset.userId;
@@ -739,11 +681,10 @@ async function loadContacts() {
             });
         });
         
-        // Переустанавливаем обработчик для общего чата
         document.querySelector('.general-chat').addEventListener('click', () => selectGroupChat());
         
         if (contacts.length === 0) {
-            contactsList.innerHTML += '<div class="no-contacts">Нет контактов. Создайте новый чат!</div>';
+            contactsList.innerHTML += '<div class="no-contacts">Нет контактов</div>';
         } else {
             console.log("Загружено контактов:", contacts.length);
         }
@@ -771,6 +712,7 @@ function selectPrivateChat(userId, username) {
     document.querySelectorAll('.chat-item').forEach(item => {
         item.classList.remove('active');
     });
+    
     const targetContact = document.querySelector(`[data-user-id="${userId}"]`);
     if (targetContact) {
         targetContact.classList.add('active');
@@ -797,11 +739,11 @@ function loadPrivateMessages(userId) {
     const messagesRef = ref(database, `chats/${chatId}/messages`);
     const messagesContainer = document.getElementById('messages-container');
     
-    messages = [];
+    // Очищаем контейнер
+    messagesContainer.innerHTML = '';
     
     onValue(messagesRef, (snapshot) => {
         const data = snapshot.val();
-        messagesContainer.innerHTML = '';
         
         if (!data) {
             messagesContainer.innerHTML = `
@@ -820,8 +762,12 @@ function loadPrivateMessages(userId) {
         
         console.log("Загружено сообщений в приватном чате:", messagesArray.length);
         
+        // Очищаем контейнер перед добавлением новых сообщений
+        messagesContainer.innerHTML = '';
+        
         messagesArray.forEach(message => {
-            addMessageToUI(message, message.senderId === currentUser.uid, false, false);
+            const isSent = message.senderId === currentUser.uid;
+            addMessageToUI(message, isSent, false);
         });
         
         scrollToBottom();
@@ -879,12 +825,9 @@ async function sendMessage() {
     try {
         await set(newMessageRef, messageData);
         input.value = '';
+        input.focus();
         
         console.log("Сообщение отправлено успешно");
-        
-        if (currentChatType === 'group') {
-            showNotification(`💬 ${currentUser.displayName}: ${messageText.substring(0, 50)}${messageText.length > 50 ? '...' : ''}`);
-        }
         
     } catch (error) {
         console.error('Ошибка отправки сообщения:', error);
@@ -892,38 +835,58 @@ async function sendMessage() {
     }
 }
 
-// Добавление сообщения в UI
+// Добавление сообщения в UI - ИСПРАВЛЕННАЯ ВЕРСИЯ
 function addMessageToUI(message, isSent, isGroup = false) {
     const messagesContainer = document.getElementById('messages-container');
-    const welcomeMessage = document.querySelector('.welcome-message');
     
-    if (welcomeMessage) {
-        welcomeMessage.remove();
-    }
-    
+    // Создаем элемент сообщения
     const messageElement = document.createElement('div');
-    messageElement.className = `message ${isSent ? 'sent' : 'received'} ${isGroup ? 'group-message' : ''}`;
+    messageElement.className = `message ${isSent ? 'sent' : 'received'}`;
     
+    // Форматируем время
     const time = new Date(message.timestamp).toLocaleTimeString([], { 
         hour: '2-digit', 
         minute: '2-digit' 
     });
     
+    // Создаем HTML содержимое
+    let htmlContent = '';
+    
     if (isGroup && !isSent) {
-        messageElement.innerHTML = `
+        // Для группового чата показываем имя отправителя
+        htmlContent = `
             <div class="sender-name">${escapeHtml(message.senderName)}</div>
             <div class="message-content">${escapeHtml(message.text)}</div>
             <div class="message-time">${time}</div>
         `;
     } else {
-        messageElement.innerHTML = `
+        // Для личных чатов или своих сообщений
+        htmlContent = `
             <div class="message-content">${escapeHtml(message.text)}</div>
             <div class="message-time">${time}</div>
         `;
     }
     
+    messageElement.innerHTML = htmlContent;
+    
+    // Добавляем анимацию
+    messageElement.style.opacity = '0';
+    messageElement.style.transform = 'translateY(10px)';
+    
+    // Добавляем в контейнер
     messagesContainer.appendChild(messageElement);
+    
+    // Анимация появления
+    setTimeout(() => {
+        messageElement.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+        messageElement.style.opacity = '1';
+        messageElement.style.transform = 'translateY(0)';
+    }, 10);
+    
+    // Прокручиваем вниз
     scrollToBottom();
+    
+    console.log("Сообщение добавлено в UI:", message.text.substring(0, 30) + "...");
 }
 
 // Поиск контактов
@@ -988,11 +951,6 @@ async function createNewChat() {
 function toggleVoiceChat() {
     const voicePanel = document.getElementById('voice-panel');
     voicePanel.classList.toggle('active');
-    
-    document.querySelector('.voice-status p').textContent = 
-        voicePanel.classList.contains('active') 
-            ? 'Подключение к голосовому чату...' 
-            : 'Подключитесь к голосовому чату';
 }
 
 // Мобильное меню
@@ -1029,40 +987,6 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
-}
-
-// Уведомления
-function showNotification(text) {
-    if ("Notification" in window && Notification.permission === "granted") {
-        new Notification("💬 NeoCascade", { 
-            body: text, 
-            icon: "https://ui-avatars.com/api/?name=NC&background=7C3AED&color=fff"
-        });
-    }
-    
-    playNotificationSound();
-}
-
-function playNotificationSound() {
-    try {
-        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        const oscillator = audioContext.createOscillator();
-        const gainNode = audioContext.createGain();
-        
-        oscillator.connect(gainNode);
-        gainNode.connect(audioContext.destination);
-        
-        oscillator.frequency.value = 800;
-        oscillator.type = 'sine';
-        
-        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
-        
-        oscillator.start(audioContext.currentTime);
-        oscillator.stop(audioContext.currentTime + 0.5);
-    } catch (e) {
-        console.log('Аудио не поддерживается');
-    }
 }
 
 // Инициализация при загрузке
