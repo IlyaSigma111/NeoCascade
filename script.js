@@ -11,6 +11,19 @@ let contacts = [];
 let videoCallActive = false;
 let callTimer = null;
 let callStartTime = null;
+let localStream = null;
+let remoteStream = null;
+let peerConnection = null;
+let selectedCameraId = null;
+let cameras = [];
+
+// Конфигурация WebRTC
+const configuration = {
+    iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' }
+    ]
+};
 
 // Инициализация приложения
 document.addEventListener('DOMContentLoaded', () => {
@@ -72,22 +85,33 @@ function setupEventListeners() {
     });
     
     // Выбор чата
-    document.querySelectorAll('.chat-item').forEach(item => {
-        item.addEventListener('click', selectChat);
+    document.addEventListener('click', (e) => {
+        if (e.target.closest('.chat-item')) {
+            const chatItem = e.target.closest('.chat-item');
+            selectChat(chatItem);
+        }
     });
     
     // Видеозвонок
-    document.getElementById('video-call-btn').addEventListener('click', initVideoCall);
-    document.getElementById('start-video-call').addEventListener('click', initVideoCall);
+    document.getElementById('video-call-btn').addEventListener('click', () => initVideoCall(true));
+    document.getElementById('start-video-call').addEventListener('click', () => initVideoCall(false));
     document.getElementById('end-call').addEventListener('click', endVideoCall);
     document.getElementById('toggle-video').addEventListener('click', toggleVideo);
     document.getElementById('toggle-audio').addEventListener('click', toggleAudio);
+    document.getElementById('camera-select').addEventListener('click', showCameraSelector);
     
     // Новый чат
     document.getElementById('new-chat-btn').addEventListener('click', createNewChat);
     
     // Поиск
     document.getElementById('search-contacts').addEventListener('input', searchContacts);
+    
+    // Закрытие выбора камеры
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('#camera-select') && !e.target.closest('#camera-selector')) {
+            document.getElementById('camera-selector').classList.remove('active');
+        }
+    });
 }
 
 // Переключение форм аутентификации
@@ -149,7 +173,6 @@ async function handleEmailRegister() {
     const password = document.getElementById('register-password').value;
     const confirmPassword = document.getElementById('register-confirm').value;
     
-    // Валидация
     if (!nickname || !email || !password || !confirmPassword) {
         showToast('Заполните все поля', 'error');
         return;
@@ -318,17 +341,11 @@ function loadContacts() {
         // Добавляем контакты после общего чата
         const generalChat = document.querySelector('.general-chat').outerHTML;
         chatsList.innerHTML = generalChat + contactsHTML;
-        
-        // Переустанавливаем обработчики
-        document.querySelectorAll('.chat-item').forEach(item => {
-            item.addEventListener('click', selectChat);
-        });
     });
 }
 
 // Выбор чата
-function selectChat(e) {
-    const chatItem = e.currentTarget;
+function selectChat(chatItem) {
     const chatId = chatItem.dataset.chatId;
     
     // Обновляем активный элемент
@@ -342,11 +359,15 @@ function selectChat(e) {
     if (chatId === 'general') {
         document.getElementById('chat-title').textContent = 'Общий чат';
         document.getElementById('chat-status').textContent = 'Групповой чат';
+        document.querySelector('.partner-avatar').innerHTML = '<i class="fas fa-users"></i>';
     } else {
         const contact = contacts.find(c => c.id === chatId);
         if (contact) {
             document.getElementById('chat-title').textContent = contact.nickname;
             document.getElementById('chat-status').textContent = contact.online ? 'в сети' : 'не в сети';
+            const avatarUrl = contact.photoURL || 
+                `https://ui-avatars.com/api/?name=${encodeURIComponent(contact.nickname)}&background=7C3AED&color=fff`;
+            document.querySelector('.partner-avatar').innerHTML = `<img src="${avatarUrl}" alt="${contact.nickname}">`;
         }
     }
     
@@ -373,13 +394,6 @@ function loadMessages() {
                         </div>
                         <h3>Общий чат NeoCascade</h3>
                         <p>Начните общение в групповом чате!</p>
-                    </div>
-                `;
-            } else {
-                messagesContainer.innerHTML = `
-                    <div class="welcome-message">
-                        <h3>Начните общение</h3>
-                        <p>Отправьте первое сообщение!</p>
                     </div>
                 `;
             }
@@ -469,10 +483,6 @@ async function sendMessage() {
         await set(newMessageRef, messageData);
         input.value = '';
         input.focus();
-        
-        if (currentChat === 'general') {
-            showNotification(`💬 ${currentUser.displayName}: ${messageText.substring(0, 50)}`);
-        }
         
     } catch (error) {
         console.error('Ошибка отправки сообщения:', error);
@@ -575,75 +585,243 @@ function resetUI() {
     `;
 }
 
-// Видеозвонок (WebRTC)
-async function initVideoCall() {
+// ВИДЕОЗВОНОК
+async function initVideoCall(isGroup = false) {
     try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-            video: true,
+        // Получаем список камер
+        await getCameras();
+        
+        // Получаем медиапоток
+        const constraints = {
+            video: {
+                deviceId: selectedCameraId ? { exact: selectedCameraId } : undefined,
+                width: { ideal: 1280 },
+                height: { ideal: 720 }
+            },
             audio: true
-        });
+        };
+        
+        localStream = await navigator.mediaDevices.getUserMedia(constraints);
         
         const localVideo = document.getElementById('local-video');
-        localVideo.srcObject = stream;
+        localVideo.srcObject = localStream;
         
-        // Показываем интерфейс видеозвонка
+        // Настраиваем удаленное видео
+        const remoteVideo = document.getElementById('remote-video');
+        remoteStream = new MediaStream();
+        remoteVideo.srcObject = remoteStream;
+        
+        // Создаем Peer Connection
+        peerConnection = new RTCPeerConnection(configuration);
+        
+        // Добавляем локальный поток
+        localStream.getTracks().forEach(track => {
+            peerConnection.addTrack(track, localStream);
+        });
+        
+        // Обработка удаленного потока
+        peerConnection.ontrack = (event) => {
+            event.streams[0].getTracks().forEach(track => {
+                remoteStream.addTrack(track);
+            });
+        };
+        
+        // ICE кандидаты
+        peerConnection.onicecandidate = (event) => {
+            if (event.candidate) {
+                // Отправляем кандидата через Firebase
+                sendIceCandidate(event.candidate);
+            }
+        };
+        
+        // Устанавливаем соединение
+        if (!isGroup) {
+            await createOffer();
+        }
+        
+        // Показываем интерфейс
         document.getElementById('video-call-container').classList.add('active');
         videoCallActive = true;
+        
+        // Обновляем имя собеседника
+        if (currentChat !== 'general') {
+            const contact = contacts.find(c => c.id === currentChat);
+            if (contact) {
+                document.getElementById('remote-name').textContent = contact.nickname;
+            }
+        }
         
         // Запускаем таймер
         startCallTimer();
         
         showToast('Видеозвонок начат', 'success');
         
-        // Здесь можно добавить логику подключения к собеседнику через WebRTC
-        // Для простоты показываем только локальное видео
-        
     } catch (error) {
-        console.error('Ошибка доступа к камере:', error);
-        showToast('Не удалось получить доступ к камере', 'error');
+        console.error('Ошибка видеозвонка:', error);
+        showToast('Ошибка видеозвонка: ' + error.message, 'error');
     }
 }
 
-function endVideoCall() {
-    const localVideo = document.getElementById('local-video');
-    const remoteVideo = document.getElementById('remote-video');
+async function createOffer() {
+    try {
+        const offer = await peerConnection.createOffer();
+        await peerConnection.setLocalDescription(offer);
+        
+        // Сохраняем offer в Firebase
+        const callRef = ref(database, `calls/${currentChat}`);
+        await set(callRef, {
+            type: 'offer',
+            sdp: offer.sdp,
+            from: currentUser.uid,
+            timestamp: Date.now()
+        });
+        
+    } catch (error) {
+        console.error('Ошибка создания offer:', error);
+    }
+}
+
+async function sendIceCandidate(candidate) {
+    try {
+        const candidateRef = ref(database, `calls/${currentChat}/candidates`);
+        await push(candidateRef, {
+            candidate: JSON.stringify(candidate),
+            from: currentUser.uid,
+            timestamp: Date.now()
+        });
+    } catch (error) {
+        console.error('Ошибка отправки ICE кандидата:', error);
+    }
+}
+
+async function getCameras() {
+    try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        cameras = devices.filter(device => device.kind === 'videoinput');
+        
+        // Обновляем список камер в UI
+        updateCameraList();
+        
+    } catch (error) {
+        console.error('Ошибка получения камер:', error);
+    }
+}
+
+function updateCameraList() {
+    const cameraList = document.getElementById('camera-list');
+    cameraList.innerHTML = '';
     
-    if (localVideo.srcObject) {
-        localVideo.srcObject.getTracks().forEach(track => track.stop());
-        localVideo.srcObject = null;
+    if (cameras.length === 0) {
+        cameraList.innerHTML = '<p>Камеры не найдены</p>';
+        return;
     }
     
-    if (remoteVideo.srcObject) {
-        remoteVideo.srcObject.getTracks().forEach(track => track.stop());
-        remoteVideo.srcObject = null;
+    cameras.forEach((camera, index) => {
+        const button = document.createElement('button');
+        button.textContent = camera.label || `Камера ${index + 1}`;
+        button.addEventListener('click', () => switchCamera(camera.deviceId));
+        cameraList.appendChild(button);
+    });
+}
+
+async function switchCamera(deviceId) {
+    try {
+        if (localStream) {
+            // Останавливаем старый видеотрек
+            localStream.getVideoTracks().forEach(track => track.stop());
+            
+            // Получаем новый видеотрек
+            const constraints = {
+                video: { deviceId: { exact: deviceId } }
+            };
+            
+            const newStream = await navigator.mediaDevices.getUserMedia(constraints);
+            const newVideoTrack = newStream.getVideoTracks()[0];
+            
+            // Заменяем видеотрек
+            const sender = peerConnection.getSenders().find(s => 
+                s.track && s.track.kind === 'video'
+            );
+            
+            if (sender) {
+                sender.replaceTrack(newVideoTrack);
+            }
+            
+            // Обновляем локальный поток
+            localStream.addTrack(newVideoTrack);
+            document.getElementById('local-video').srcObject = localStream;
+            
+            selectedCameraId = deviceId;
+            showToast('Камера изменена', 'success');
+            
+            // Скрываем выбор камеры
+            document.getElementById('camera-selector').classList.remove('active');
+        }
+    } catch (error) {
+        console.error('Ошибка смены камеры:', error);
+        showToast('Ошибка смены камеры', 'error');
+    }
+}
+
+function showCameraSelector() {
+    document.getElementById('camera-selector').classList.toggle('active');
+}
+
+function endVideoCall() {
+    if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+        localStream = null;
+    }
+    
+    if (remoteStream) {
+        remoteStream.getTracks().forEach(track => track.stop());
+        remoteStream = null;
+    }
+    
+    if (peerConnection) {
+        peerConnection.close();
+        peerConnection = null;
     }
     
     document.getElementById('video-call-container').classList.remove('active');
     videoCallActive = false;
     
     stopCallTimer();
-    showToast('Видеозвонок завершен', 'info');
+    
+    // Очищаем данные звонка в Firebase
+    if (currentChat) {
+        const callRef = ref(database, `calls/${currentChat}`);
+        set(callRef, null);
+    }
+    
+    showToast('Звонок завершен', 'info');
 }
 
 function toggleVideo() {
-    const localVideo = document.getElementById('local-video');
-    if (localVideo.srcObject) {
-        const videoTrack = localVideo.srcObject.getVideoTracks()[0];
-        videoTrack.enabled = !videoTrack.enabled;
-        
-        const btn = document.getElementById('toggle-video');
-        btn.innerHTML = videoTrack.enabled ? '<i class="fas fa-video"></i>' : '<i class="fas fa-video-slash"></i>';
+    if (localStream) {
+        const videoTrack = localStream.getVideoTracks()[0];
+        if (videoTrack) {
+            videoTrack.enabled = !videoTrack.enabled;
+            const btn = document.getElementById('toggle-video');
+            btn.innerHTML = videoTrack.enabled ? 
+                '<i class="fas fa-video"></i>' : 
+                '<i class="fas fa-video-slash"></i>';
+            btn.title = videoTrack.enabled ? 'Выключить видео' : 'Включить видео';
+        }
     }
 }
 
 function toggleAudio() {
-    const localVideo = document.getElementById('local-video');
-    if (localVideo.srcObject) {
-        const audioTrack = localVideo.srcObject.getAudioTracks()[0];
-        audioTrack.enabled = !audioTrack.enabled;
-        
-        const btn = document.getElementById('toggle-audio');
-        btn.innerHTML = audioTrack.enabled ? '<i class="fas fa-microphone"></i>' : '<i class="fas fa-microphone-slash"></i>';
+    if (localStream) {
+        const audioTrack = localStream.getAudioTracks()[0];
+        if (audioTrack) {
+            audioTrack.enabled = !audioTrack.enabled;
+            const btn = document.getElementById('toggle-audio');
+            btn.innerHTML = audioTrack.enabled ? 
+                '<i class="fas fa-microphone"></i>' : 
+                '<i class="fas fa-microphone-slash"></i>';
+            btn.title = audioTrack.enabled ? 'Выключить звук' : 'Включить звук';
+        }
     }
 }
 
@@ -691,30 +869,29 @@ function showToast(message, type = 'info') {
     const container = document.getElementById('toast-container');
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
+    
+    let icon = 'info-circle';
+    if (type === 'success') icon = 'check-circle';
+    if (type === 'error') icon = 'exclamation-circle';
+    
     toast.innerHTML = `
-        <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
+        <i class="fas fa-${icon}"></i>
         <span>${message}</span>
     `;
     
     container.appendChild(toast);
     
     setTimeout(() => {
-        toast.remove();
+        toast.style.animation = 'slideIn 0.3s ease-out reverse';
+        setTimeout(() => toast.remove(), 300);
     }, 3000);
-}
-
-function showNotification(message) {
-    if ("Notification" in window && Notification.permission === "granted") {
-        new Notification("NeoCascade", { 
-            body: message,
-            icon: "https://ui-avatars.com/api/?name=NC&background=3B82F6&color=fff"
-        });
-    }
 }
 
 function toggleUserMenu() {
     const menu = document.getElementById('user-menu');
     menu.classList.toggle('active');
+    menu.style.top = '60px';
+    menu.style.right = '15px';
 }
 
 function hideAllMenus() {
@@ -728,8 +905,13 @@ function searchContacts() {
     const chatItems = document.querySelectorAll('.chat-item');
     
     chatItems.forEach(item => {
+        if (item.classList.contains('general-chat')) {
+            item.style.display = 'flex';
+            return;
+        }
+        
         const name = item.querySelector('.chat-name').textContent.toLowerCase();
-        const isVisible = name.includes(searchTerm) || item.classList.contains('general-chat');
+        const isVisible = name.includes(searchTerm);
         item.style.display = isVisible ? 'flex' : 'none';
     });
 }
@@ -743,6 +925,44 @@ async function createNewChat() {
     const username = prompt('Введите имя пользователя для нового чата:');
     if (!username) return;
     
-    showToast('Функция в разработке', 'info');
-    // Здесь можно добавить логику создания нового чата
+    // Поиск пользователя в базе данных
+    const usersRef = ref(database, 'users');
+    const snapshot = await get(usersRef);
+    
+    if (snapshot.exists()) {
+        const users = snapshot.val();
+        const existingUser = Object.entries(users).find(([id, user]) => 
+            user.nickname && user.nickname.toLowerCase() === username.toLowerCase()
+        );
+        
+        if (existingUser) {
+            // Создаем элемент чата
+            const chatsList = document.getElementById('chats-list');
+            const chatId = existingUser[0];
+            
+            const avatarUrl = existingUser[1].photoURL || 
+                `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=7C3AED&color=fff`;
+            
+            const chatHTML = `
+                <div class="chat-item" data-chat-id="${chatId}">
+                    <div class="chat-avatar">
+                        <img src="${avatarUrl}" alt="${username}">
+                    </div>
+                    <div class="chat-info">
+                        <div class="chat-name">${username}</div>
+                        <div class="chat-last">не в сети</div>
+                    </div>
+                </div>
+            `;
+            
+            // Вставляем после общего чата
+            const generalChat = document.querySelector('.general-chat');
+            generalChat.insertAdjacentHTML('afterend', chatHTML);
+            
+            showToast(`Чат с ${username} создан`, 'success');
+            return;
+        }
+    }
+    
+    showToast('Пользователь не найден', 'error');
 }
