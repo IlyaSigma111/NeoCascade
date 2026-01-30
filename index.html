@@ -2,14 +2,14 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NeoCascade Messenger</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
-    <!-- Видеозвонок (скрыт по умолчанию) -->
+    <!-- Видеозвонок -->
     <div id="video-call-container" class="video-call-container">
         <div class="video-header">
             <div class="call-info">
@@ -18,13 +18,16 @@
                 <span id="call-timer">00:00</span>
             </div>
             <div class="call-controls">
-                <button class="call-btn" id="toggle-video">
+                <button class="call-btn" id="toggle-video" title="Включить/выключить видео">
                     <i class="fas fa-video"></i>
                 </button>
-                <button class="call-btn" id="toggle-audio">
+                <button class="call-btn" id="toggle-audio" title="Включить/выключить звук">
                     <i class="fas fa-microphone"></i>
                 </button>
-                <button class="call-btn end-call" id="end-call">
+                <button class="call-btn" id="camera-select" title="Выбрать камеру">
+                    <i class="fas fa-camera"></i>
+                </button>
+                <button class="call-btn end-call" id="end-call" title="Завершить звонок">
                     <i class="fas fa-phone-slash"></i>
                 </button>
             </div>
@@ -36,7 +39,12 @@
             </div>
             <div class="video-wrapper remote-video">
                 <video id="remote-video" autoplay playsinline></video>
-                <div class="video-label" id="remote-name">Собеседник</div>
+                <div class="video-label" id="remote-name">Ожидание подключения...</div>
+            </div>
+        </div>
+        <div class="camera-selector" id="camera-selector">
+            <div class="camera-list" id="camera-list">
+                <p>Загрузка камер...</p>
             </div>
         </div>
     </div>
@@ -79,18 +87,15 @@
                         <div class="chat-last">Групповое общение</div>
                     </div>
                 </div>
-                <!-- Контакты будут загружены здесь -->
             </div>
 
             <!-- Нижняя панель -->
             <div class="sidebar-footer">
-                <button class="action-btn" id="new-chat-btn" disabled>
+                <button class="action-btn" id="new-chat-btn" disabled title="Новый чат">
                     <i class="fas fa-plus"></i>
-                    <span>Новый чат</span>
                 </button>
-                <button class="action-btn" id="video-call-btn" disabled>
+                <button class="action-btn" id="video-call-btn" disabled title="Начать видеозвонок">
                     <i class="fas fa-video"></i>
-                    <span>Видеозвонок</span>
                 </button>
             </div>
         </div>
@@ -109,13 +114,13 @@
                     </div>
                 </div>
                 <div class="chat-actions">
-                    <button class="icon-btn" id="voice-call-btn" disabled>
+                    <button class="icon-btn" id="voice-call-btn" disabled title="Голосовой звонок">
                         <i class="fas fa-phone"></i>
                     </button>
-                    <button class="icon-btn" id="start-video-call" disabled>
+                    <button class="icon-btn" id="start-video-call" disabled title="Видеозвонок">
                         <i class="fas fa-video"></i>
                     </button>
-                    <button class="icon-btn" id="chat-menu-btn" disabled>
+                    <button class="icon-btn" id="chat-menu-btn" disabled title="Меню чата">
                         <i class="fas fa-ellipsis-v"></i>
                     </button>
                 </div>
@@ -135,26 +140,26 @@
             <!-- Ввод сообщения -->
             <div class="message-input-area">
                 <div class="input-tools">
-                    <button class="icon-btn" id="emoji-btn" disabled>
+                    <button class="icon-btn" id="emoji-btn" disabled title="Смайлики">
                         <i class="fas fa-smile"></i>
                     </button>
-                    <button class="icon-btn" id="attach-btn" disabled>
+                    <button class="icon-btn" id="attach-btn" disabled title="Прикрепить файл">
                         <i class="fas fa-paperclip"></i>
                     </button>
                 </div>
                 <div class="message-input-wrapper">
                     <input type="text" id="message-input" placeholder="Войдите, чтобы отправлять сообщения" disabled>
-                    <button class="send-btn" id="send-btn" disabled>
+                    <button class="send-btn" id="send-btn" disabled title="Отправить">
                         <i class="fas fa-paper-plane"></i>
                     </button>
                 </div>
-                <button class="voice-btn" id="voice-btn" disabled>
+                <button class="voice-btn" id="voice-btn" disabled title="Голосовое сообщение">
                     <i class="fas fa-microphone"></i>
                 </button>
             </div>
         </div>
 
-        <!-- Меню пользователя (выпадающее) -->
+        <!-- Меню пользователя -->
         <div class="dropdown-menu" id="user-menu">
             <button class="dropdown-item" id="profile-btn">
                 <i class="fas fa-user"></i> Профиль
@@ -168,13 +173,13 @@
             </button>
         </div>
 
-        <!-- Меню чата (выпадающее) -->
+        <!-- Меню чата -->
         <div class="dropdown-menu" id="chat-menu">
             <button class="dropdown-item" id="clear-chat-btn">
                 <i class="fas fa-trash"></i> Очистить чат
             </button>
             <button class="dropdown-item" id="chat-info-btn">
-                <i class="fas fa-info-circle"></i> Информация о чате
+                <i class="fas fa-info-circle"></i> Информация
             </button>
         </div>
     </div>
@@ -188,7 +193,6 @@
             </div>
 
             <div class="auth-container">
-                <!-- Форма входа -->
                 <div class="auth-form active" id="login-form">
                     <h3>Вход в аккаунт</h3>
                     
@@ -219,7 +223,6 @@
                     </p>
                 </div>
 
-                <!-- Форма регистрации -->
                 <div class="auth-form" id="register-form">
                     <h3>Создание аккаунта</h3>
                     
@@ -259,13 +262,6 @@
                         Уже есть аккаунт? <a href="#" id="switch-to-login">Войти</a>
                     </p>
                 </div>
-            </div>
-
-            <div class="modal-footer">
-                <p class="terms">Создавая аккаунт, вы соглашаетесь с нашими 
-                    <a href="#">Условиями использования</a> и 
-                    <a href="#">Политикой конфиденциальности</a>
-                </p>
             </div>
         </div>
     </div>
