@@ -4,12 +4,14 @@ import {
     getAuth, 
     createUserWithEmailAndPassword,
     signInWithEmailAndPassword,
+    signInWithPopup,
+    GoogleAuthProvider,
     onAuthStateChanged,
     signOut,
     updateProfile
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
-// Конфигурация Firebase
+// Конфигурация Firebase (ВАША)
 const firebaseConfig = {
     apiKey: "AIzaSyDxGOGD6Oooo1CILrmrTpzy5Sq_MPuGiKM",
     authDomain: "messenger-4a3ab.firebaseapp.com",
@@ -26,6 +28,7 @@ const app = initializeApp(firebaseConfig);
 // Инициализация сервисов
 const database = getDatabase(app);
 const auth = getAuth(app);
+const googleProvider = new GoogleAuthProvider();
 
 // Экспорт всего необходимого
 export { 
@@ -39,6 +42,8 @@ export {
     auth, 
     createUserWithEmailAndPassword,
     signInWithEmailAndPassword,
+    signInWithPopup,
+    googleProvider,
     onAuthStateChanged, 
     signOut,
     updateProfile
