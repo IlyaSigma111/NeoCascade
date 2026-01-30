@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NeoCascade Messenger</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script type="module" src="firebase-config.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Мобильное меню -->
+        <div class="mobile-menu-btn">
+            <i class="fas fa-bars"></i>
+        </div>
+
+        <!-- Сайдбар -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h1><i class="fas fa-water"></i> NeoCascade</h1>
+                <div class="user-profile">
+                    <img src="https://ui-avatars.com/api/?name=User&background=64FFDA&color=0A192F" alt="Avatar" id="user-avatar">
+                    <div>
+                        <span id="username">Гость</span>
+                        <small id="user-status" class="online">в сети</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="search-bar">
+                <i class="fas fa-search"></i>
+                <input type="text" id="search-contacts" placeholder="Поиск контактов...">
+            </div>
+
+            <div class="contacts-list">
+                <!-- Контакты будут загружаться динамически -->
+                <div class="contact loading">
+                    <div class="contact-avatar"></div>
+                    <div class="contact-info">
+                        <div class="contact-name"></div>
+                        <div class="last-message"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sidebar-footer">
+                <button class="btn-new-chat">
+                    <i class="fas fa-plus"></i> Новый чат
+                </button>
+                <button class="btn-voice-chat" id="voice-chat-btn">
+                    <i class="fas fa-phone-alt"></i> Голосовой чат
+                </button>
+            </div>
+        </div>
+
+        <!-- Основная область чата -->
+        <div class="chat-area">
+            <div class="chat-header">
+                <div class="chat-partner">
+                    <div class="partner-avatar">
+                        <img src="https://ui-avatars.com/api/?name=Друг&background=7C3AED&color=fff" alt="Avatar">
+                        <span class="status-indicator online"></span>
+                    </div>
+                    <div class="partner-info">
+                        <h3 id="chat-title">Выберите чат</h3>
+                        <p id="chat-status">начните общение</p>
+                    </div>
+                </div>
+                <div class="chat-actions">
+                    <button class="btn-action"><i class="fas fa-phone"></i></button>
+                    <button class="btn-action"><i class="fas fa-video"></i></button>
+                    <button class="btn-action"><i class="fas fa-ellipsis-v"></i></button>
+                </div>
+            </div>
+
+            <div class="messages-container" id="messages-container">
+                <!-- Сообщения будут загружаться здесь -->
+                <div class="welcome-message">
+                    <h2><i class="fas fa-water"></i> Добро пожаловать в NeoCascade!</h2>
+                    <p>Выберите контакт для начала общения</p>
+                    <p class="hint">Сообщения появляются как водопад - плавно и непрерывно</p>
+                </div>
+            </div>
+
+            <div class="message-input-area">
+                <div class="input-tools">
+                    <button class="btn-tool" id="emoji-btn"><i class="fas fa-smile"></i></button>
+                    <button class="btn-tool" id="image-btn"><i class="fas fa-image"></i></button>
+                    <!-- Новая кнопка для объявлений -->
+                    <button class="btn-tool" id="announcement-btn" title="Создать объявление">
+                        <i class="fas fa-bullhorn"></i>
+                    </button>
+                </div>
+                <div class="message-input-wrapper">
+                    <input type="text" id="message-input" placeholder="Введите сообщение..." disabled>
+                    <button class="btn-send" id="send-btn" disabled>
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+                <button class="btn-voice"><i class="fas fa-microphone"></i></button>
+            </div>
+        </div>
+
+        <!-- Панель голосового чата -->
+        <div class="voice-panel" id="voice-panel">
+            <div class="voice-header">
+                <h3><i class="fas fa-phone-alt"></i> Голосовой чат</h3>
+                <button class="btn-close-voice" id="close-voice-btn"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="voice-participants" id="voice-participants">
+                <!-- Участники голосового чата -->
+            </div>
+            <div class="voice-controls">
+                <button class="btn-voice-control mute"><i class="fas fa-microphone-slash"></i></button>
+                <button class="btn-voice-control main"><i class="fas fa-phone-slash"></i></button>
+                <button class="btn-voice-control speaker"><i class="fas fa-volume-up"></i></button>
+            </div>
+            <div class="voice-status">
+                <p>Подключитесь к голосовому чату</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно входа -->
+    <div class="modal" id="login-modal">
+        <div class="modal-content">
+            <h2><i class="fas fa-water"></i> Вход в NeoCascade</h2>
+            <div class="login-form">
+                <input type="text" id="login-name" placeholder="Ваше имя" maxlength="20">
+                <button id="login-btn" class="btn-login">Войти в чат</button>
+                <p class="login-note">Используется анонимный вход. Ваши сообщения сохраняются в базе данных.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно для создания объявлений -->
+    <div class="announcement-modal" id="announcement-modal">
+        <div class="announcement-modal-content">
+            <h3><i class="fas fa-bullhorn"></i> Создать объявление</h3>
+            
+            <div class="announcement-form">
+                <input type="text" 
+                       id="announcement-title" 
+                       placeholder="Заголовок объявления"
+                       maxlength="50">
+                
+                <textarea id="announcement-text" 
+                          placeholder="Текст объявления (опционально)"
+                          maxlength="200"></textarea>
+                
+                <input type="url" 
+                       id="announcement-link" 
+                       placeholder="https://ссылка-на-ресурс.com"
+                       required>
+                
+                <div class="announcement-buttons">
+                    <button class="btn-cancel" id="cancel-announcement">
+                        <i class="fas fa-times"></i> Отмена
+                    </button>
+                    <button class="btn-announce" id="send-announcement">
+                        <i class="fas fa-paper-plane"></i> Опубликовать
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js" type="module"></script>
+</body>
+</html>
