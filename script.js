@@ -37,10 +37,13 @@ function initApp() {
     // Проверяем состояние аутентификации
     onAuthStateChanged(auth, async (user) => {
         console.log("Статус аутентификации:", user ? "вошел" : "не вошел");
+        
         if (user) {
+            console.log("Пользователь обнаружен:", user.uid, user.email);
             // Пользователь уже вошел
             await handleExistingUser(user);
         } else {
+            console.log("Пользователь не авторизован");
             // Показываем окно входа
             showAuthModal();
             // Загружаем общий чат для гостей
@@ -244,6 +247,7 @@ async function handleEmailLogin() {
         console.log("Успешный вход по Email:", user.email);
         
         hideAllMessages();
+        // Не вызываем handleExistingUser здесь - это сделает onAuthStateChanged
         
     } catch (error) {
         console.error('Ошибка входа по Email:', error);
@@ -327,6 +331,8 @@ async function handleEmailRegister() {
         showSuccess('Регистрация успешна! Выполняется вход...');
         console.log("Пользователь сохранен в базе данных");
         
+        // onAuthStateChanged автоматически вызовется после регистрации
+        
     } catch (error) {
         console.error('Ошибка регистрации:', error);
         
@@ -384,6 +390,7 @@ async function handleExistingUser(firebaseUser, userData = null) {
         userData = await checkAndUpdateUserInDatabase(firebaseUser);
     }
     
+    // Устанавливаем currentUser ДО enableUI
     currentUser = {
         uid: firebaseUser.uid,
         displayName: userData.nickname || firebaseUser.displayName || firebaseUser.email || 'Аноним',
@@ -391,13 +398,25 @@ async function handleExistingUser(firebaseUser, userData = null) {
         photoURL: firebaseUser.photoURL
     };
     
-    console.log("Текущий пользователь установлен:", currentUser.displayName);
+    console.log("Текущий пользователь установлен:", currentUser.displayName, "UID:", currentUser.uid);
     
+    // Обновляем профиль пользователя
     updateUserProfile();
-    loadContacts();
+    
+    // Скрываем модальное окно входа
     hideAuthModal();
+    
+    // Загружаем контакты и чаты
+    loadContacts();
+    
+    // Устанавливаем онлайн статус
     setupPresence(firebaseUser.uid);
+    
+    // Активируем интерфейс
     enableUI();
+    
+    // Перезагружаем общий чат
+    loadGroupMessages();
 }
 
 // Выбор общего чата
@@ -492,7 +511,12 @@ function getRussianPlural(number) {
 
 // Активация интерфейса после входа
 function enableUI() {
-    console.log("Активация интерфейса...");
+    console.log("Активация интерфейса для пользователя:", currentUser?.displayName);
+    
+    if (!currentUser) {
+        console.error("Ошибка: currentUser не определен!");
+        return;
+    }
     
     document.getElementById('search-contacts').disabled = false;
     document.getElementById('search-contacts').placeholder = "Поиск контактов...";
@@ -513,8 +537,11 @@ function enableUI() {
     document.getElementById('message-input').disabled = false;
     document.getElementById('send-btn').disabled = false;
     document.getElementById('message-input').placeholder = 'Сообщение в общий чат...';
+    document.getElementById('message-input').focus();
     
     loadOnlineUsers();
+    
+    console.log("Интерфейс активирован!");
 }
 
 // Выход из системы
@@ -587,6 +614,7 @@ function resetUI() {
     
     document.querySelector('.btn-voice').disabled = true;
     
+    // Очищаем список контактов (но оставляем общий чат)
     document.querySelector('.contacts-list').innerHTML = `
         <div class="chat-item general-chat contact" data-chat-type="group">
             <div class="contact-avatar">
@@ -599,6 +627,9 @@ function resetUI() {
         </div>
         <div class="no-contacts">Войдите, чтобы увидеть контакты</div>
     `;
+    
+    // Переустанавливаем обработчик для общего чата
+    document.querySelector('.general-chat').addEventListener('click', () => selectGroupChat());
     
     document.querySelectorAll('.chat-item').forEach(item => {
         item.classList.remove('active');
@@ -634,7 +665,7 @@ function setupPresence(userId) {
 
 // Загрузка контактов
 async function loadContacts() {
-    console.log("Загрузка контактов...");
+    console.log("Загрузка контактов для пользователя:", currentUser?.uid);
     
     const contactsRef = ref(database, 'users');
     
@@ -699,6 +730,7 @@ async function loadContacts() {
         
         contactsList.innerHTML = contactsHTML;
         
+        // Устанавливаем обработчики для контактов
         document.querySelectorAll('.contact[data-user-id]').forEach(contact => {
             contact.addEventListener('click', () => {
                 const userId = contact.dataset.userId;
@@ -707,6 +739,7 @@ async function loadContacts() {
             });
         });
         
+        // Переустанавливаем обработчик для общего чата
         document.querySelector('.general-chat').addEventListener('click', () => selectGroupChat());
         
         if (contacts.length === 0) {
@@ -721,6 +754,11 @@ async function loadContacts() {
 function selectPrivateChat(userId, username) {
     console.log("Выбор приватного чата с:", username, "ID:", userId);
     
+    if (!currentUser) {
+        showError('Сначала войдите в систему!');
+        return;
+    }
+    
     currentChat = userId;
     currentChatType = 'private';
     
@@ -733,12 +771,16 @@ function selectPrivateChat(userId, username) {
     document.querySelectorAll('.chat-item').forEach(item => {
         item.classList.remove('active');
     });
-    document.querySelector(`[data-user-id="${userId}"]`).classList.add('active');
+    const targetContact = document.querySelector(`[data-user-id="${userId}"]`);
+    if (targetContact) {
+        targetContact.classList.add('active');
+    }
     document.querySelector('.general-chat').classList.remove('active');
     
     document.getElementById('message-input').disabled = false;
     document.getElementById('send-btn').disabled = false;
     document.getElementById('message-input').placeholder = `Сообщение для ${username}...`;
+    document.getElementById('message-input').focus();
     
     loadPrivateMessages(userId);
     
@@ -793,6 +835,8 @@ function getChatId(user1, user2) {
 
 // Отправка сообщения
 async function sendMessage() {
+    console.log("Попытка отправки сообщения... currentUser:", currentUser);
+    
     if (!currentUser) {
         showError('Сначала войдите в систему!');
         return;
