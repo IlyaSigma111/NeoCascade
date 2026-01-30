@@ -1,6 +1,7 @@
 import { 
     database, ref, push, onValue, set, get, child, 
-    auth, signInWithPopup, googleProvider, onAuthStateChanged, signOut 
+    auth, createUserWithEmailAndPassword, signInWithEmailAndPassword, 
+    onAuthStateChanged, signOut, updateProfile 
 } from './firebase-config.js';
 
 // Глобальные переменные
@@ -34,30 +35,43 @@ function initApp() {
             // Пользователь уже вошел
             await handleExistingUser(user);
         } else {
-            // Показываем окно входа через Google
-            showGoogleLoginModal();
+            // Показываем окно входа
+            showAuthModal();
         }
     });
 }
 
 // Настройка обработчиков событий
 function setupEventListeners() {
-    // Кнопка входа через Google
-    document.getElementById('google-login-btn').addEventListener('click', handleGoogleLogin);
-    
-    // Кнопка сохранения ника
-    document.getElementById('save-nickname-btn').addEventListener('click', saveNickname);
-    
-    // Ввод ника по Enter
-    document.getElementById('nickname-input').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') saveNickname();
+    // Табы аутентификации
+    document.querySelectorAll('.auth-tab').forEach(tab => {
+        tab.addEventListener('click', (e) => {
+            const tabName = e.target.dataset.tab;
+            switchAuthTab(tabName);
+        });
     });
     
-    // Кнопки примеров ников
-    document.querySelectorAll('.suggestion-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            document.getElementById('nickname-input').value = e.target.dataset.nick;
-        });
+    // Переключение между формами
+    document.querySelector('.switch-to-register').addEventListener('click', (e) => {
+        e.preventDefault();
+        switchAuthTab('register');
+    });
+    
+    document.querySelector('.switch-to-login').addEventListener('click', (e) => {
+        e.preventDefault();
+        switchAuthTab('login');
+    });
+    
+    // Кнопка входа
+    document.getElementById('login-btn').addEventListener('click', handleLogin);
+    document.getElementById('login-password').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') handleLogin();
+    });
+    
+    // Кнопка регистрации
+    document.getElementById('register-btn').addEventListener('click', handleRegister);
+    document.getElementById('register-confirm').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') handleRegister();
     });
     
     // Кнопка выхода
@@ -94,28 +108,192 @@ function setupEventListeners() {
     });
 }
 
-// Вход через Google
-async function handleGoogleLogin() {
+// Переключение табов аутентификации
+function switchAuthTab(tabName) {
+    // Обновляем активные табы
+    document.querySelectorAll('.auth-tab').forEach(tab => {
+        tab.classList.toggle('active', tab.dataset.tab === tabName);
+    });
+    
+    // Показываем соответствующую форму
+    document.querySelectorAll('.auth-form').forEach(form => {
+        form.classList.toggle('active', form.id === `${tabName}-form`);
+    });
+    
+    // Очищаем сообщения об ошибках
+    hideAllMessages();
+}
+
+// Показать/скрыть сообщения
+function showError(message) {
+    const errorDiv = document.querySelector('.error-message') || createMessageElement('error');
+    errorDiv.textContent = message;
+    errorDiv.classList.add('show');
+}
+
+function showSuccess(message) {
+    const successDiv = document.querySelector('.success-message') || createMessageElement('success');
+    successDiv.textContent = message;
+    successDiv.classList.add('show');
+}
+
+function hideAllMessages() {
+    document.querySelectorAll('.error-message, .success-message').forEach(el => {
+        el.classList.remove('show');
+    });
+}
+
+function createMessageElement(type) {
+    const div = document.createElement('div');
+    div.className = `${type}-message`;
+    document.querySelector('.auth-form.active').appendChild(div);
+    return div;
+}
+
+// Вход по email/password
+async function handleLogin() {
+    const email = document.getElementById('login-email').value.trim();
+    const password = document.getElementById('login-password').value.trim();
+    
+    // Валидация
+    if (!email || !password) {
+        showError('Заполните все поля');
+        return;
+    }
+    
+    // Показываем индикатор загрузки
+    const loginBtn = document.getElementById('login-btn');
+    loginBtn.classList.add('loading');
+    loginBtn.disabled = true;
+    
     try {
-        const result = await signInWithPopup(auth, googleProvider);
-        const user = result.user;
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
         
-        // Проверяем, есть ли у пользователя ник в базе данных
-        const userRef = ref(database, `users/${user.uid}`);
-        const snapshot = await get(userRef);
-        
-        if (snapshot.exists()) {
-            // Пользователь уже есть в базе - загружаем данные
-            const userData = snapshot.val();
-            await handleExistingUser(user, userData);
-        } else {
-            // Новый пользователь - показываем окно выбора ника
-            showNicknameModal(user);
-        }
+        // Успешный вход обрабатывается в onAuthStateChanged
+        hideAllMessages();
         
     } catch (error) {
-        console.error('Ошибка входа через Google:', error);
-        alert('Не удалось войти через Google. Проверьте консоль Firebase (включите Google Sign-in).');
+        console.error('Ошибка входа:', error);
+        
+        // Показываем понятное сообщение об ошибке
+        let errorMessage = 'Ошибка входа. ';
+        
+        switch (error.code) {
+            case 'auth/invalid-email':
+                errorMessage += 'Неверный формат email';
+                break;
+            case 'auth/user-disabled':
+                errorMessage += 'Аккаунт отключен';
+                break;
+            case 'auth/user-not-found':
+                errorMessage += 'Пользователь не найден';
+                break;
+            case 'auth/wrong-password':
+                errorMessage += 'Неверный пароль';
+                break;
+            case 'auth/too-many-requests':
+                errorMessage += 'Слишком много попыток. Попробуйте позже';
+                break;
+            default:
+                errorMessage += 'Проверьте email и пароль';
+        }
+        
+        showError(errorMessage);
+        
+    } finally {
+        // Убираем индикатор загрузки
+        loginBtn.classList.remove('loading');
+        loginBtn.disabled = false;
+    }
+}
+
+// Регистрация нового пользователя
+async function handleRegister() {
+    const nickname = document.getElementById('register-nickname').value.trim();
+    const email = document.getElementById('register-email').value.trim();
+    const password = document.getElementById('register-password').value;
+    const confirmPassword = document.getElementById('register-confirm').value;
+    
+    // Валидация
+    if (!nickname || !email || !password || !confirmPassword) {
+        showError('Заполните все поля');
+        return;
+    }
+    
+    if (nickname.length < 3) {
+        showError('Никнейм должен содержать минимум 3 символа');
+        return;
+    }
+    
+    if (password.length < 6) {
+        showError('Пароль должен содержать минимум 6 символов');
+        return;
+    }
+    
+    if (password !== confirmPassword) {
+        showError('Пароли не совпадают');
+        return;
+    }
+    
+    // Показываем индикатор загрузки
+    const registerBtn = document.getElementById('register-btn');
+    registerBtn.classList.add('loading');
+    registerBtn.disabled = true;
+    
+    try {
+        // Создаем пользователя
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+        
+        // Обновляем профиль с никнеймом
+        await updateProfile(user, {
+            displayName: nickname
+        });
+        
+        // Сохраняем пользователя в базу данных
+        await set(ref(database, `users/${user.uid}`), {
+            uid: user.uid,
+            email: user.email,
+            nickname: nickname,
+            online: true,
+            lastSeen: Date.now(),
+            createdAt: Date.now()
+        });
+        
+        showSuccess('Регистрация успешна! Выполняется вход...');
+        
+        // Автоматический вход обрабатывается в onAuthStateChanged
+        
+    } catch (error) {
+        console.error('Ошибка регистрации:', error);
+        
+        // Показываем понятное сообщение об ошибке
+        let errorMessage = 'Ошибка регистрации. ';
+        
+        switch (error.code) {
+            case 'auth/email-already-in-use':
+                errorMessage += 'Email уже используется';
+                break;
+            case 'auth/invalid-email':
+                errorMessage += 'Неверный формат email';
+                break;
+            case 'auth/operation-not-allowed':
+                errorMessage += 'Регистрация по email отключена';
+                break;
+            case 'auth/weak-password':
+                errorMessage += 'Пароль слишком слабый';
+                break;
+            default:
+                errorMessage += 'Попробуйте другой email';
+        }
+        
+        showError(errorMessage);
+        
+    } finally {
+        // Убираем индикатор загрузки
+        registerBtn.classList.remove('loading');
+        registerBtn.disabled = false;
     }
 }
 
@@ -127,11 +305,12 @@ async function handleExistingUser(firebaseUser, userData = null) {
         userData = snapshot.val();
     }
     
+    // Создаем объект текущего пользователя
     currentUser = {
         uid: firebaseUser.uid,
-        displayName: userData.nickname || firebaseUser.displayName || 'Аноним',
+        displayName: userData?.nickname || firebaseUser.displayName || firebaseUser.email || 'Аноним',
         email: firebaseUser.email,
-        photoURL: firebaseUser.photoURL || userData.photoURL
+        photoURL: firebaseUser.photoURL
     };
     
     // Обновляем профиль пользователя
@@ -140,99 +319,11 @@ async function handleExistingUser(firebaseUser, userData = null) {
     // Загружаем контакты и чаты
     loadContacts();
     
-    // Скрываем все модальные окна
-    hideAllModals();
+    // Скрываем модальное окно
+    hideAuthModal();
     
     // Устанавливаем онлайн статус
     setupPresence(firebaseUser.uid);
-}
-
-// Показать окно выбора ника
-function showNicknameModal(user) {
-    // Заполняем данные пользователя
-    document.getElementById('preview-avatar').src = user.photoURL || 
-        `https://ui-avatars.com/api/?name=${encodeURIComponent(user.email || 'User')}&background=64FFDA&color=0A192F`;
-    document.getElementById('preview-email').textContent = user.email || 'Нет email';
-    
-    // Генерируем предложение ника на основе email
-    const suggestedNick = generateNickFromEmail(user.email || 'User');
-    document.getElementById('nickname-input').value = suggestedNick;
-    document.getElementById('nickname-input').focus();
-    
-    // Показываем окно выбора ника
-    hideGoogleLoginModal();
-    document.getElementById('nickname-modal').style.display = 'flex';
-}
-
-// Генерация ника из email
-function generateNickFromEmail(email) {
-    const username = email.split('@')[0];
-    // Убираем цифры и специальные символы, добавляем случайное число
-    const cleanName = username.replace(/[0-9._-]/g, '');
-    const randomNum = Math.floor(Math.random() * 1000);
-    return (cleanName || 'User') + randomNum;
-}
-
-// Сохранение ника
-async function saveNickname() {
-    const nicknameInput = document.getElementById('nickname-input');
-    const nickname = nicknameInput.value.trim();
-    
-    if (!nickname) {
-        nicknameInput.style.borderColor = '#EF4444';
-        setTimeout(() => {
-            nicknameInput.style.borderColor = 'rgba(100, 255, 218, 0.3)';
-        }, 2000);
-        return;
-    }
-    
-    if (nickname.length < 3) {
-        alert('Ник должен содержать минимум 3 символа');
-        return;
-    }
-    
-    try {
-        const user = auth.currentUser;
-        if (!user) {
-            alert('Пользователь не найден. Попробуйте войти заново.');
-            return;
-        }
-        
-        // Сохраняем пользователя в базу данных
-        await set(ref(database, `users/${user.uid}`), {
-            uid: user.uid,
-            email: user.email,
-            nickname: nickname,
-            photoURL: user.photoURL,
-            online: true,
-            lastSeen: Date.now(),
-            createdAt: Date.now()
-        });
-        
-        // Обновляем текущего пользователя
-        currentUser = {
-            uid: user.uid,
-            displayName: nickname,
-            email: user.email,
-            photoURL: user.photoURL
-        };
-        
-        // Обновляем профиль
-        updateUserProfile();
-        
-        // Загружаем контакты
-        loadContacts();
-        
-        // Скрываем модальное окно
-        hideAllModals();
-        
-        // Устанавливаем онлайн статус
-        setupPresence(user.uid);
-        
-    } catch (error) {
-        console.error('Ошибка сохранения ника:', error);
-        alert('Не удалось сохранить ник. Попробуйте еще раз.');
-    }
 }
 
 // Выход из системы
@@ -254,41 +345,46 @@ async function handleLogout() {
         messages = [];
         
         // Сбрасываем UI
-        document.getElementById('username').textContent = 'Гость';
-        document.getElementById('user-avatar').src = 'https://ui-avatars.com/api/?name=User&background=64FFDA&color=0A192F';
-        document.getElementById('user-status').textContent = 'не в сети';
-        document.getElementById('user-status').className = 'offline';
-        
-        document.getElementById('chat-title').textContent = 'Выберите чат';
-        document.getElementById('chat-status').textContent = 'начните общение';
-        document.getElementById('messages-container').innerHTML = `
-            <div class="welcome-message">
-                <h2><i class="fas fa-water"></i> Добро пожаловать в NeoCascade!</h2>
-                <p>Выберите контакт для начала общения</p>
-                <p class="hint">Сообщения появляются как водопад - плавно и непрерывно</p>
-            </div>
-        `;
-        
-        document.getElementById('message-input').disabled = true;
-        document.getElementById('send-btn').disabled = true;
-        document.getElementById('message-input').placeholder = 'Введите сообщение...';
-        document.getElementById('message-input').value = '';
-        
-        // Очищаем список контактов
-        document.querySelector('.contacts-list').innerHTML = '<div class="no-contacts">Нет контактов</div>';
-        
-        // Сбрасываем активный чат
-        document.querySelectorAll('.contact').forEach(contact => {
-            contact.classList.remove('active');
-        });
+        resetUI();
         
         // Показываем окно входа
-        showGoogleLoginModal();
+        showAuthModal();
         
     } catch (error) {
         console.error('Ошибка выхода:', error);
         alert('Ошибка при выходе из системы');
     }
+}
+
+// Сброс UI
+function resetUI() {
+    document.getElementById('username').textContent = 'Гость';
+    document.getElementById('user-avatar').src = 'https://ui-avatars.com/api/?name=User&background=64FFDA&color=0A192F';
+    document.getElementById('user-status').textContent = 'не в сети';
+    document.getElementById('user-status').className = 'offline';
+    
+    document.getElementById('chat-title').textContent = 'Выберите чат';
+    document.getElementById('chat-status').textContent = 'начните общение';
+    document.getElementById('messages-container').innerHTML = `
+        <div class="welcome-message">
+            <h2><i class="fas fa-water"></i> Добро пожаловать в NeoCascade!</h2>
+            <p>Выберите контакт для начала общения</p>
+            <p class="hint">Сообщения появляются как водопад - плавно и непрерывно</p>
+        </div>
+    `;
+    
+    document.getElementById('message-input').disabled = true;
+    document.getElementById('send-btn').disabled = true;
+    document.getElementById('message-input').placeholder = 'Введите сообщение...';
+    document.getElementById('message-input').value = '';
+    
+    // Очищаем список контактов
+    document.querySelector('.contacts-list').innerHTML = '<div class="no-contacts">Нет контактов</div>';
+    
+    // Сбрасываем активный чат
+    document.querySelectorAll('.contact').forEach(contact => {
+        contact.classList.remove('active');
+    });
 }
 
 // Обновление профиля пользователя
@@ -299,27 +395,22 @@ function updateUserProfile() {
     document.getElementById('user-status').textContent = 'в сети';
     document.getElementById('user-status').className = 'online';
     
-    // Используем фото Google или генерируем аватар
-    if (currentUser.photoURL) {
-        document.getElementById('user-avatar').src = currentUser.photoURL;
-    } else {
-        document.getElementById('user-avatar').src = 
-            `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.displayName)}&background=64FFDA&color=0A192F`;
-    }
+    // Генерируем аватар на основе имени
+    document.getElementById('user-avatar').src = 
+        `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.displayName)}&background=64FFDA&color=0A192F`;
 }
 
 // Управление модальными окнами
-function showGoogleLoginModal() {
-    document.getElementById('google-login-modal').style.display = 'flex';
+function showAuthModal() {
+    document.getElementById('auth-modal').style.display = 'flex';
+    // Сбрасываем форму входа
+    document.getElementById('login-email').value = '';
+    document.getElementById('login-password').value = '';
+    hideAllMessages();
 }
 
-function hideGoogleLoginModal() {
-    document.getElementById('google-login-modal').style.display = 'none';
-}
-
-function hideAllModals() {
-    document.getElementById('google-login-modal').style.display = 'none';
-    document.getElementById('nickname-modal').style.display = 'none';
+function hideAuthModal() {
+    document.getElementById('auth-modal').style.display = 'none';
     document.getElementById('announcement-modal').style.display = 'none';
 }
 
@@ -340,7 +431,7 @@ function setupPresence(userId) {
         // При подключении
         set(userStatusRef, true);
         
-        // При отключении
+        // При отключении (обработка закрытия вкладки)
         const onDisconnectRef = ref(database, `users/${userId}/online`);
         set(onDisconnectRef, false);
         set(ref(database, `users/${userId}/lastSeen`), Date.now());
@@ -377,9 +468,8 @@ async function loadContacts() {
             contactElement.className = 'contact';
             contactElement.dataset.userId = userId;
             
-            // Определяем аватар
-            let avatarUrl = userData.photoURL || 
-                `https://ui-avatars.com/api/?name=${encodeURIComponent(userData.nickname || userData.email || '?')}&background=7C3AED&color=fff`;
+            // Генерируем аватар
+            let avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(userData.nickname || userData.email || '?')}&background=7C3AED&color=fff`;
             
             // Определяем имя для отображения
             let displayName = userData.nickname || userData.email || 'Аноним';
