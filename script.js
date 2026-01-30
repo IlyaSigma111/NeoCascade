@@ -7,7 +7,7 @@ import {
 // Глобальные переменные
 let currentUser = null;
 let currentChat = null;
-let currentChatType = 'group'; // 'group' или 'private'
+let currentChatType = 'group';
 let contacts = [];
 let messages = [];
 let onlineUsers = new Set();
@@ -78,7 +78,7 @@ function setupEventListeners() {
         if (e.key === 'Enter') handleEmailLogin();
     });
     
-    // Кнопка входа через Google с обработкой ошибок домена
+    // Кнопка входа через Google
     document.getElementById('google-login-btn').addEventListener('click', handleGoogleLogin);
     document.getElementById('google-register-btn').addEventListener('click', handleGoogleLogin);
     
@@ -116,21 +116,11 @@ function setupEventListeners() {
     // Выбор общего чата
     document.querySelector('.general-chat').addEventListener('click', () => selectGroupChat());
     
-    // Объявления (только в общем чате)
-    document.getElementById('announcement-btn').addEventListener('click', showAnnouncementModal);
-    document.getElementById('cancel-announcement').addEventListener('click', hideAnnouncementModal);
-    document.getElementById('send-announcement').addEventListener('click', sendAnnouncement);
-    document.getElementById('announcement-link').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') sendAnnouncement();
-    });
-    
-    // Закрытие модальных окон при клике на фон
-    document.querySelectorAll('.modal').forEach(modal => {
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                modal.style.display = 'none';
-            }
-        });
+    // Закрытие модального окна при клике на фон
+    document.getElementById('auth-modal').addEventListener('click', (e) => {
+        if (e.target === e.currentTarget) {
+            hideAuthModal();
+        }
     });
 }
 
@@ -175,7 +165,6 @@ function showError(message) {
     errorDiv.classList.add('show');
     console.error("Ошибка:", message);
     
-    // Автоматическое скрытие через 5 секунд
     setTimeout(() => {
         errorDiv.classList.remove('show');
     }, 5000);
@@ -187,7 +176,6 @@ function showSuccess(message) {
     successDiv.classList.add('show');
     console.log("Успех:", message);
     
-    // Автоматическое скрытие через 3 секунды
     setTimeout(() => {
         successDiv.classList.remove('show');
     }, 3000);
@@ -198,77 +186,38 @@ function hideAllMessages() {
     document.getElementById('success-message').classList.remove('show');
 }
 
-// Вход через Google с улучшенной обработкой ошибок
+// Вход через Google
 async function handleGoogleLogin() {
     console.log("Вход через Google...");
     
     try {
-        // Проверяем, запущено ли приложение локально
-        const isLocalhost = window.location.hostname === 'localhost' || 
-                           window.location.hostname === '127.0.0.1' ||
-                           window.location.hostname === '';
-        
-        if (isLocalhost) {
-            console.log("Локальный хост обнаружен, используем обходной путь...");
-            
-            // Для локального тестирования предлагаем использовать Email
-            if (confirm('Для локального тестирования Google Sign-in может не работать.\n\nХотите использовать вход по Email вместо этого?')) {
-                switchAuthTab('login');
-                return;
-            }
-        }
-        
         const result = await signInWithPopup(auth, googleProvider);
         const user = result.user;
         console.log("Успешный вход через Google:", user.email);
         
-        // Скрываем сообщения об ошибках
         hideAllMessages();
-        
-        // Проверяем и обновляем пользователя в базе данных
         await checkAndUpdateUserInDatabase(user);
         
     } catch (error) {
         console.error('Ошибка входа через Google:', error.code, error.message);
         
-        // Показываем понятное сообщение об ошибке
         let errorMessage = 'Ошибка входа через Google. ';
-        let showEmailAlternative = false;
         
         switch (error.code) {
             case 'auth/popup-closed-by-user':
                 errorMessage = 'Вход отменен';
                 break;
             case 'auth/popup-blocked':
-                errorMessage = 'Всплывающее окно заблокировано. Разрешите всплывающие окна для этого сайта';
+                errorMessage = 'Всплывающее окно заблокировано';
                 break;
             case 'auth/unauthorized-domain':
-                errorMessage = 'Для работы Google Sign-in необходимо добавить ваш домен в Firebase Console.\n\n';
-                errorMessage += 'Используйте вход по Email или добавьте localhost в authorized domains в Firebase Console.';
-                showEmailAlternative = true;
-                break;
-            case 'auth/operation-not-allowed':
-                errorMessage = 'Вход через Google не включен в Firebase Console';
-                showEmailAlternative = true;
-                break;
-            case 'auth/cancelled-popup-request':
-                errorMessage = 'Запрос на вход был отменен';
+                errorMessage = 'Домен не авторизован для Google Sign-in';
                 break;
             default:
-                errorMessage += 'Попробуйте еще раз или используйте вход по Email';
-                showEmailAlternative = true;
+                errorMessage += 'Попробуйте еще раз';
         }
         
         showError(errorMessage);
-        
-        // Предлагаем альтернативу
-        if (showEmailAlternative) {
-            setTimeout(() => {
-                if (confirm('Хотите использовать вход по Email вместо Google?')) {
-                    switchAuthTab('login');
-                }
-            }, 1000);
-        }
     }
 }
 
@@ -285,7 +234,6 @@ async function handleEmailLogin() {
         return;
     }
     
-    // Показываем индикатор загрузки
     const loginBtn = document.getElementById('email-login-btn');
     loginBtn.classList.add('loading');
     loginBtn.disabled = true;
@@ -295,30 +243,22 @@ async function handleEmailLogin() {
         const user = userCredential.user;
         console.log("Успешный вход по Email:", user.email);
         
-        // Успешный вход обрабатывается в onAuthStateChanged
         hideAllMessages();
         
     } catch (error) {
         console.error('Ошибка входа по Email:', error);
         
-        // Показываем понятное сообщение об ошибке
         let errorMessage = 'Ошибка входа. ';
         
         switch (error.code) {
             case 'auth/invalid-email':
                 errorMessage += 'Неверный формат email';
                 break;
-            case 'auth/user-disabled':
-                errorMessage += 'Аккаунт отключен';
-                break;
             case 'auth/user-not-found':
                 errorMessage += 'Пользователь не найден';
                 break;
             case 'auth/wrong-password':
                 errorMessage += 'Неверный пароль';
-                break;
-            case 'auth/too-many-requests':
-                errorMessage += 'Слишком много попыток. Попробуйте позже';
                 break;
             default:
                 errorMessage += 'Проверьте email и пароль';
@@ -327,7 +267,6 @@ async function handleEmailLogin() {
         showError(errorMessage);
         
     } finally {
-        // Убираем индикатор загрузки
         loginBtn.classList.remove('loading');
         loginBtn.disabled = false;
     }
@@ -363,23 +302,19 @@ async function handleEmailRegister() {
         return;
     }
     
-    // Показываем индикатор загрузки
     const registerBtn = document.getElementById('email-register-btn');
     registerBtn.classList.add('loading');
     registerBtn.disabled = true;
     
     try {
-        // Создаем пользователя
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
         console.log("Пользователь создан:", user.uid);
         
-        // Обновляем профиль с никнеймом
         await updateProfile(user, {
             displayName: nickname
         });
         
-        // Сохраняем пользователя в базу данных
         await set(ref(database, `users/${user.uid}`), {
             uid: user.uid,
             email: user.email,
@@ -392,12 +327,9 @@ async function handleEmailRegister() {
         showSuccess('Регистрация успешна! Выполняется вход...');
         console.log("Пользователь сохранен в базе данных");
         
-        // Автоматический вход обрабатывается в onAuthStateChanged
-        
     } catch (error) {
         console.error('Ошибка регистрации:', error);
         
-        // Показываем понятное сообщение об ошибке
         let errorMessage = 'Ошибка регистрации. ';
         
         switch (error.code) {
@@ -407,12 +339,6 @@ async function handleEmailRegister() {
             case 'auth/invalid-email':
                 errorMessage += 'Неверный формат email';
                 break;
-            case 'auth/operation-not-allowed':
-                errorMessage += 'Регистрация по email отключена';
-                break;
-            case 'auth/weak-password':
-                errorMessage += 'Пароль слишком слабый';
-                break;
             default:
                 errorMessage += 'Попробуйте другой email';
         }
@@ -420,7 +346,6 @@ async function handleEmailRegister() {
         showError(errorMessage);
         
     } finally {
-        // Убираем индикатор загрузки
         registerBtn.classList.remove('loading');
         registerBtn.disabled = false;
     }
@@ -432,11 +357,9 @@ async function checkAndUpdateUserInDatabase(firebaseUser) {
     const snapshot = await get(userRef);
     
     if (snapshot.exists()) {
-        // Пользователь уже есть в базе
         console.log("Пользователь уже в базе данных");
         return snapshot.val();
     } else {
-        // Создаем нового пользователя в базе
         console.log("Создание нового пользователя в базе данных");
         const userData = {
             uid: firebaseUser.uid,
@@ -461,7 +384,6 @@ async function handleExistingUser(firebaseUser, userData = null) {
         userData = await checkAndUpdateUserInDatabase(firebaseUser);
     }
     
-    // Создаем объект текущего пользователя
     currentUser = {
         uid: firebaseUser.uid,
         displayName: userData.nickname || firebaseUser.displayName || firebaseUser.email || 'Аноним',
@@ -471,19 +393,10 @@ async function handleExistingUser(firebaseUser, userData = null) {
     
     console.log("Текущий пользователь установлен:", currentUser.displayName);
     
-    // Обновляем профиль пользователя
     updateUserProfile();
-    
-    // Загружаем контакты и чаты
     loadContacts();
-    
-    // Скрываем модальное окно входа
     hideAuthModal();
-    
-    // Устанавливаем онлайн статус
     setupPresence(firebaseUser.uid);
-    
-    // Активируем интерфейс
     enableUI();
 }
 
@@ -496,19 +409,14 @@ function selectGroupChat() {
     document.getElementById('chat-title').textContent = 'Общий чат';
     document.getElementById('chat-status').textContent = 'Групповой чат';
     
-    // Обновляем активный элемент в списке чатов
-    document.querySelectorAll('.chat-item, .contact').forEach(item => {
+    document.querySelectorAll('.chat-item').forEach(item => {
         item.classList.remove('active');
     });
     document.querySelector('.general-chat').classList.add('active');
     
-    // Загружаем сообщения общего чата
     loadGroupMessages();
-    
-    // Загружаем информацию об онлайн пользователях
     loadOnlineUsers();
     
-    // На мобильных скрываем меню
     if (window.innerWidth <= 768) {
         document.querySelector('.sidebar').classList.remove('active');
     }
@@ -532,13 +440,11 @@ function loadGroupMessages() {
                 <div class="welcome-message">
                     <h3>Общий чат NeoCascade</h3>
                     <p>Начните общение в групповом чате!</p>
-                    <p class="hint">Отправьте первое сообщение или создайте объявление</p>
                 </div>
             `;
             return;
         }
         
-        // Преобразуем объект в массив и сортируем по времени
         const messagesArray = Object.entries(data).map(([id, message]) => ({
             id,
             ...message
@@ -546,13 +452,8 @@ function loadGroupMessages() {
         
         console.log("Загружено сообщений в общем чате:", messagesArray.length);
         
-        // Отображаем сообщения
         messagesArray.forEach(message => {
-            if (message.type === 'announcement' || message.isAnnouncement) {
-                addMessageToUI(message, message.senderId === currentUser?.uid, true, true);
-            } else {
-                addMessageToUI(message, message.senderId === currentUser?.uid, false, true);
-            }
+            addMessageToUI(message, message.senderId === currentUser?.uid, false, true);
         });
         
         scrollToBottom();
@@ -577,7 +478,6 @@ function loadOnlineUsers() {
             }
         });
         
-        // Обновляем статус в UI
         document.getElementById('chat-status').textContent = 
             `${onlineCount} участник${getRussianPlural(onlineCount)} онлайн`;
     });
@@ -594,15 +494,12 @@ function getRussianPlural(number) {
 function enableUI() {
     console.log("Активация интерфейса...");
     
-    // Активируем поле поиска
     document.getElementById('search-contacts').disabled = false;
     document.getElementById('search-contacts').placeholder = "Поиск контактов...";
     
-    // Активируем кнопки
     document.getElementById('new-chat-btn').disabled = false;
     document.getElementById('voice-chat-btn').disabled = false;
     
-    // Активируем инструменты
     document.querySelectorAll('.btn-tool').forEach(btn => {
         btn.disabled = false;
     });
@@ -613,15 +510,10 @@ function enableUI() {
     
     document.querySelector('.btn-voice').disabled = false;
     
-    // Активируем поле ввода для общего чата
     document.getElementById('message-input').disabled = false;
     document.getElementById('send-btn').disabled = false;
     document.getElementById('message-input').placeholder = 'Сообщение в общий чат...';
     
-    // Активируем кнопку объявлений (только для общего чата)
-    document.getElementById('announcement-btn').disabled = false;
-    
-    // Загружаем онлайн пользователей
     loadOnlineUsers();
 }
 
@@ -630,25 +522,19 @@ async function handleLogout() {
     console.log("Выход из системы...");
     
     try {
-        // Устанавливаем статус офлайн
         if (currentUser) {
             await set(ref(database, `users/${currentUser.uid}/online`), false);
             await set(ref(database, `users/${currentUser.uid}/lastSeen`), Date.now());
         }
         
-        // Выход из Firebase
         await signOut(auth);
         
-        // Сбрасываем состояние
         currentUser = null;
         currentChat = null;
         contacts = [];
         messages = [];
         
-        // Сбрасываем UI
         resetUI();
-        
-        // Показываем окно входа
         showAuthModal();
         
         console.log("Выход выполнен успешно");
@@ -684,17 +570,13 @@ function resetUI() {
     document.getElementById('message-input').placeholder = 'Войдите, чтобы отправлять сообщения';
     document.getElementById('message-input').value = '';
     
-    // Деактивируем поле поиска
     document.getElementById('search-contacts').disabled = true;
     document.getElementById('search-contacts').value = '';
     document.getElementById('search-contacts').placeholder = 'Войдите для поиска...';
     
-    // Деактивируем кнопки
     document.getElementById('new-chat-btn').disabled = true;
     document.getElementById('voice-chat-btn').disabled = true;
-    document.getElementById('announcement-btn').disabled = true;
     
-    // Деактивируем инструменты
     document.querySelectorAll('.btn-tool').forEach(btn => {
         btn.disabled = true;
     });
@@ -705,15 +587,23 @@ function resetUI() {
     
     document.querySelector('.btn-voice').disabled = true;
     
-    // Очищаем список контактов
-    document.getElementById('contacts-list').innerHTML = '<div class="no-contacts">Войдите, чтобы увидеть контакты</div>';
+    document.querySelector('.contacts-list').innerHTML = `
+        <div class="chat-item general-chat contact" data-chat-type="group">
+            <div class="contact-avatar">
+                <img src="https://ui-avatars.com/api/?name=Общий&background=7C3AED&color=fff" alt="Общий чат">
+            </div>
+            <div class="contact-info">
+                <div class="contact-name">Общий чат</div>
+                <div class="last-message">Групповое общение</div>
+            </div>
+        </div>
+        <div class="no-contacts">Войдите, чтобы увидеть контакты</div>
+    `;
     
-    // Сбрасываем активный чат
-    document.querySelectorAll('.chat-item, .contact').forEach(item => {
+    document.querySelectorAll('.chat-item').forEach(item => {
         item.classList.remove('active');
     });
     
-    // Активируем общий чат по умолчанию
     document.querySelector('.general-chat').classList.add('active');
     currentChat = 'general';
     currentChatType = 'group';
@@ -729,16 +619,13 @@ function setupPresence(userId) {
     const disconnectRef = ref(database, '.info/connected');
     onValue(disconnectRef, (snapshot) => {
         if (snapshot.val() === false) {
-            // При отключении
             set(userStatusRef, false);
             set(userLastSeenRef, Date.now());
             return;
         }
         
-        // При подключении
         set(userStatusRef, true);
         
-        // При отключении (обработка закрытия вкладки)
         const onDisconnectRef = ref(database, `users/${userId}/online`);
         set(onDisconnectRef, false);
         set(ref(database, `users/${userId}/lastSeen`), Date.now());
@@ -754,18 +641,37 @@ async function loadContacts() {
     onValue(contactsRef, (snapshot) => {
         const data = snapshot.val();
         contacts = [];
-        const contactsList = document.getElementById('contacts-list');
+        const contactsList = document.querySelector('.contacts-list');
         
         if (!data) {
-            contactsList.innerHTML = '<div class="no-contacts">Нет контактов</div>';
+            contactsList.innerHTML = `
+                <div class="chat-item general-chat contact" data-chat-type="group">
+                    <div class="contact-avatar">
+                        <img src="https://ui-avatars.com/api/?name=Общий&background=7C3AED&color=fff" alt="Общий чат">
+                    </div>
+                    <div class="contact-info">
+                        <div class="contact-name">Общий чат</div>
+                        <div class="last-message">Групповое общение</div>
+                    </div>
+                </div>
+                <div class="no-contacts">Нет контактов</div>
+            `;
             return;
         }
         
-        // Очищаем список
-        contactsList.innerHTML = '';
+        let contactsHTML = `
+            <div class="chat-item general-chat contact" data-chat-type="group">
+                <div class="contact-avatar">
+                    <img src="https://ui-avatars.com/api/?name=Общий&background=7C3AED&color=fff" alt="Общий чат">
+                </div>
+                <div class="contact-info">
+                    <div class="contact-name">Общий чат</div>
+                    <div class="last-message">Групповое общение</div>
+                </div>
+            </div>
+        `;
         
         Object.entries(data).forEach(([userId, userData]) => {
-            // Пропускаем текущего пользователя
             if (userId === currentUser?.uid) return;
             
             contacts.push({
@@ -773,35 +679,38 @@ async function loadContacts() {
                 ...userData
             });
             
-            const contactElement = document.createElement('div');
-            contactElement.className = 'contact chat-item';
-            contactElement.dataset.userId = userId;
-            contactElement.dataset.chatType = 'private';
-            
-            // Генерируем аватар
-            let avatarUrl = userData.photoURL || 
+            const avatarUrl = userData.photoURL || 
                 `https://ui-avatars.com/api/?name=${encodeURIComponent(userData.nickname || userData.email || '?')}&background=7C3AED&color=fff`;
             
-            // Определяем имя для отображения
-            let displayName = userData.nickname || userData.email || 'Аноним';
+            const displayName = userData.nickname || userData.email || 'Аноним';
             
-            contactElement.innerHTML = `
-                <div class="contact-avatar">
-                    <img src="${avatarUrl}" alt="${displayName}">
-                </div>
-                <div class="contact-info">
-                    <div class="chat-name">${displayName}</div>
-                    <div class="chat-last-message">${userData.online ? 'в сети' : 'не в сети'}</div>
+            contactsHTML += `
+                <div class="contact chat-item" data-user-id="${userId}" data-chat-type="private">
+                    <div class="contact-avatar">
+                        <img src="${avatarUrl}" alt="${displayName}">
+                    </div>
+                    <div class="contact-info">
+                        <div class="contact-name">${displayName}</div>
+                        <div class="last-message">${userData.online ? 'в сети' : 'не в сети'}</div>
+                    </div>
                 </div>
             `;
-            
-            contactElement.addEventListener('click', () => selectPrivateChat(userId, displayName));
-            contactsList.appendChild(contactElement);
         });
         
-        // Если контактов нет (кроме текущего пользователя)
+        contactsList.innerHTML = contactsHTML;
+        
+        document.querySelectorAll('.contact[data-user-id]').forEach(contact => {
+            contact.addEventListener('click', () => {
+                const userId = contact.dataset.userId;
+                const displayName = contact.querySelector('.contact-name').textContent;
+                selectPrivateChat(userId, displayName);
+            });
+        });
+        
+        document.querySelector('.general-chat').addEventListener('click', () => selectGroupChat());
+        
         if (contacts.length === 0) {
-            contactsList.innerHTML = '<div class="no-contacts">Нет контактов. Создайте новый чат!</div>';
+            contactsList.innerHTML += '<div class="no-contacts">Нет контактов. Создайте новый чат!</div>';
         } else {
             console.log("Загружено контактов:", contacts.length);
         }
@@ -818,29 +727,21 @@ function selectPrivateChat(userId, username) {
     document.getElementById('chat-title').textContent = username;
     document.getElementById('chat-status').textContent = 'личный чат';
     
-    // Обновляем аватар в чате
     const contactAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=7C3AED&color=fff`;
-    document.querySelector('.partner-avatar').innerHTML = `<img src="${contactAvatar}" alt="${username}">`;
+    document.querySelector('.partner-avatar img').src = contactAvatar;
     
-    // Обновляем активный элемент в списке чатов
-    document.querySelectorAll('.chat-item, .contact').forEach(item => {
+    document.querySelectorAll('.chat-item').forEach(item => {
         item.classList.remove('active');
     });
     document.querySelector(`[data-user-id="${userId}"]`).classList.add('active');
     document.querySelector('.general-chat').classList.remove('active');
     
-    // Деактивируем кнопку объявлений в приватных чатах
-    document.getElementById('announcement-btn').disabled = true;
-    
-    // Активируем поле ввода
     document.getElementById('message-input').disabled = false;
     document.getElementById('send-btn').disabled = false;
     document.getElementById('message-input').placeholder = `Сообщение для ${username}...`;
     
-    // Загружаем сообщения приватного чата
     loadPrivateMessages(userId);
     
-    // На мобильных скрываем меню
     if (window.innerWidth <= 768) {
         document.querySelector('.sidebar').classList.remove('active');
     }
@@ -870,7 +771,6 @@ function loadPrivateMessages(userId) {
             return;
         }
         
-        // Преобразуем объект в массив и сортируем по времени
         const messagesArray = Object.entries(data).map(([id, message]) => ({
             id,
             ...message
@@ -878,7 +778,6 @@ function loadPrivateMessages(userId) {
         
         console.log("Загружено сообщений в приватном чате:", messagesArray.length);
         
-        // Отображаем сообщения
         messagesArray.forEach(message => {
             addMessageToUI(message, message.senderId === currentUser.uid, false, false);
         });
@@ -914,20 +813,6 @@ async function sendMessage() {
     
     console.log("Отправка сообщения в", currentChatType, "чат:", messageText.substring(0, 50) + "...");
     
-    // Проверяем, не является ли сообщение командой (только в общем чате)
-    if (currentChatType === 'group' && messageText.startsWith('/announce ')) {
-        const parts = messageText.substring(10).split('|');
-        if (parts.length >= 2) {
-            showAnnouncementModal();
-            if (parts[0]) document.getElementById('announcement-title').value = parts[0];
-            if (parts[1]) document.getElementById('announcement-text').value = parts[1];
-            if (parts[2]) document.getElementById('announcement-link').value = parts[2];
-            input.value = '';
-            return;
-        }
-    }
-    
-    // Определяем путь в базе данных в зависимости от типа чата
     let messagesRef;
     if (currentChatType === 'group') {
         messagesRef = ref(database, `chats/general/messages`);
@@ -953,7 +838,6 @@ async function sendMessage() {
         
         console.log("Сообщение отправлено успешно");
         
-        // Отправляем уведомление для группового чата
         if (currentChatType === 'group') {
             showNotification(`💬 ${currentUser.displayName}: ${messageText.substring(0, 50)}${messageText.length > 50 ? '...' : ''}`);
         }
@@ -964,8 +848,8 @@ async function sendMessage() {
     }
 }
 
-// Обновленная функция addMessageToUI для поддержки group чата
-function addMessageToUI(message, isSent, isAnnouncement, isGroup = false) {
+// Добавление сообщения в UI
+function addMessageToUI(message, isSent, isGroup = false) {
     const messagesContainer = document.getElementById('messages-container');
     const welcomeMessage = document.querySelector('.welcome-message');
     
@@ -973,137 +857,29 @@ function addMessageToUI(message, isSent, isAnnouncement, isGroup = false) {
         welcomeMessage.remove();
     }
     
-    if (isAnnouncement || message.type === 'announcement' || message.isAnnouncement) {
-        const announcementElement = document.createElement('div');
-        announcementElement.className = 'message announcement-message';
-        
-        let domain = 'Ссылка';
-        try {
-            const url = new URL(message.link);
-            domain = url.hostname.replace('www.', '');
-        } catch (e) {}
-        
-        const time = new Date(message.timestamp).toLocaleTimeString([], { 
-            hour: '2-digit', 
-            minute: '2-digit' 
-        });
-        
-        announcementElement.innerHTML = `
-            <div class="announcement-icon">📢</div>
-            <div class="announcement-title">${escapeHtml(message.title || 'Объявление')}</div>
-            ${message.text ? `<div class="announcement-text">${escapeHtml(message.text)}</div>` : ''}
-            <a href="${escapeHtml(message.link)}" 
-               target="_blank" 
-               rel="noopener noreferrer"
-               class="announcement-link">
-                <i class="fas fa-external-link-alt"></i>
-                ${escapeHtml(domain)}
-            </a>
-            <div class="message-time" style="margin-top: 10px; opacity: 0.8;">
-                От: ${escapeHtml(message.senderName)} • ${time}
-            </div>
+    const messageElement = document.createElement('div');
+    messageElement.className = `message ${isSent ? 'sent' : 'received'} ${isGroup ? 'group-message' : ''}`;
+    
+    const time = new Date(message.timestamp).toLocaleTimeString([], { 
+        hour: '2-digit', 
+        minute: '2-digit' 
+    });
+    
+    if (isGroup && !isSent) {
+        messageElement.innerHTML = `
+            <div class="sender-name">${escapeHtml(message.senderName)}</div>
+            <div class="message-content">${escapeHtml(message.text)}</div>
+            <div class="message-time">${time}</div>
         `;
-        
-        messagesContainer.appendChild(announcementElement);
     } else {
-        const messageElement = document.createElement('div');
-        messageElement.className = `message ${isSent ? 'sent' : 'received'} ${isGroup ? 'group-message' : ''}`;
-        
-        const time = new Date(message.timestamp).toLocaleTimeString([], { 
-            hour: '2-digit', 
-            minute: '2-digit' 
-        });
-        
-        if (isGroup && !isSent) {
-            messageElement.innerHTML = `
-                <div class="sender-name">${escapeHtml(message.senderName)}</div>
-                <div class="message-content">${escapeHtml(message.text)}</div>
-                <div class="message-time">${time}</div>
-            `;
-        } else {
-            messageElement.innerHTML = `
-                <div class="message-content">${escapeHtml(message.text)}</div>
-                <div class="message-time">${time}</div>
-            `;
-        }
-        
-        messagesContainer.appendChild(messageElement);
+        messageElement.innerHTML = `
+            <div class="message-content">${escapeHtml(message.text)}</div>
+            <div class="message-time">${time}</div>
+        `;
     }
     
+    messagesContainer.appendChild(messageElement);
     scrollToBottom();
-}
-
-// Обновленная функция showAnnouncementModal (только для общего чата)
-function showAnnouncementModal() {
-    if (!currentUser) {
-        showError('Сначала войдите в систему!');
-        return;
-    }
-    
-    if (currentChatType !== 'group') {
-        showError('Объявления можно создавать только в общем чате!');
-        return;
-    }
-    
-    document.getElementById('announcement-modal').style.display = 'flex';
-    document.getElementById('announcement-title').focus();
-}
-
-function hideAnnouncementModal() {
-    document.getElementById('announcement-modal').style.display = 'none';
-    document.getElementById('announcement-title').value = '';
-    document.getElementById('announcement-text').value = '';
-    document.getElementById('announcement-link').value = '';
-}
-
-// Обновленная функция sendAnnouncement
-async function sendAnnouncement() {
-    if (currentChatType !== 'group') {
-        showError('Объявления можно отправлять только в общем чате!');
-        return;
-    }
-    
-    const title = document.getElementById('announcement-title').value.trim();
-    const text = document.getElementById('announcement-text').value.trim();
-    const link = document.getElementById('announcement-link').value.trim();
-    
-    // Валидация
-    if (!link) {
-        showError('Пожалуйста, введите ссылку!');
-        document.getElementById('announcement-link').focus();
-        return;
-    }
-    
-    if (!isValidUrl(link)) {
-        showError('Пожалуйста, введите корректную ссылку (начинается с http:// или https://)');
-        return;
-    }
-    
-    const messagesRef = ref(database, `chats/general/messages`);
-    const newMessageRef = push(messagesRef);
-    
-    const announcementData = {
-        type: 'announcement',
-        title: title || 'Важное объявление',
-        text: text || '',
-        link: link,
-        senderId: currentUser.uid,
-        senderName: currentUser.displayName,
-        timestamp: Date.now(),
-        isAnnouncement: true,
-        chatType: 'group'
-    };
-    
-    try {
-        await set(newMessageRef, announcementData);
-        hideAnnouncementModal();
-        showSuccess('Объявление отправлено в общий чат!');
-        showNotification(`📢 Новое объявление от ${currentUser.displayName}`);
-        
-    } catch (error) {
-        console.error('Ошибка отправки объявления:', error);
-        showError('Не удалось отправить объявление');
-    }
 }
 
 // Поиск контактов
@@ -1113,25 +889,23 @@ function searchContacts() {
     let found = false;
     
     contactElements.forEach(contact => {
-        const contactName = contact.querySelector('.chat-name').textContent.toLowerCase();
+        const contactName = contact.querySelector('.contact-name').textContent.toLowerCase();
         const isVisible = contactName.includes(searchTerm);
         contact.style.display = isVisible ? 'flex' : 'none';
         if (isVisible) found = true;
     });
     
-    // Если ничего не найдено
-    const contactsList = document.getElementById('contacts-list');
-    const noResults = contactsList.querySelector('.no-results');
-    
     if (!found && searchTerm) {
+        const noResults = document.querySelector('.no-results');
         if (!noResults) {
             const noResultsElement = document.createElement('div');
             noResultsElement.className = 'no-contacts no-results';
             noResultsElement.textContent = 'Контакты не найдены';
-            contactsList.appendChild(noResultsElement);
+            document.querySelector('.contacts-list').appendChild(noResultsElement);
         }
-    } else if (noResults) {
-        noResults.remove();
+    } else {
+        const noResults = document.querySelector('.no-results');
+        if (noResults) noResults.remove();
     }
 }
 
@@ -1147,7 +921,6 @@ async function createNewChat() {
     
     console.log("Поиск пользователя:", username);
     
-    // Ищем пользователя в базе данных
     const usersRef = ref(database, 'users');
     const snapshot = await get(usersRef);
     
@@ -1193,21 +966,10 @@ function updateUserProfile() {
     document.getElementById('user-status').textContent = 'в сети';
     document.getElementById('user-status').className = 'online';
     
-    // Генерируем аватар на основе имени
     const avatarUrl = currentUser.photoURL || 
         `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.displayName)}&background=64FFDA&color=0A192F`;
     
     document.getElementById('user-avatar').src = avatarUrl;
-}
-
-// Проверка URL
-function isValidUrl(string) {
-    try {
-        new URL(string);
-        return true;
-    } catch (_) {
-        return false;
-    }
 }
 
 // Прокрутка вниз
@@ -1227,16 +989,13 @@ function escapeHtml(text) {
 
 // Уведомления
 function showNotification(text) {
-    // Браузерные уведомления
     if ("Notification" in window && Notification.permission === "granted") {
-        new Notification("📢 NeoCascade", { 
+        new Notification("💬 NeoCascade", { 
             body: text, 
-            icon: "https://ui-avatars.com/api/?name=NC&background=7C3AED&color=fff",
-            tag: "announcement"
+            icon: "https://ui-avatars.com/api/?name=NC&background=7C3AED&color=fff"
         });
     }
     
-    // Звуковое уведомление
     playNotificationSound();
 }
 
