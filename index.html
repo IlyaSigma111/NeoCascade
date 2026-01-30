@@ -7,7 +7,6 @@
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <script type="module" src="firebase-config.js"></script>
 </head>
 <body>
     <div class="app-container">
@@ -22,9 +21,12 @@
                 <h1><i class="fas fa-water"></i> NeoCascade</h1>
                 <div class="user-profile">
                     <img src="https://ui-avatars.com/api/?name=User&background=64FFDA&color=0A192F" alt="Avatar" id="user-avatar">
-                    <div>
+                    <div class="user-info">
                         <span id="username">Гость</span>
-                        <small id="user-status" class="online">в сети</small>
+                        <small id="user-status" class="offline">не в сети</small>
+                        <button class="logout-btn" id="logout-btn">
+                            <i class="fas fa-sign-out-alt"></i> Выйти
+                        </button>
                     </div>
                 </div>
             </div>
@@ -36,13 +38,7 @@
 
             <div class="contacts-list">
                 <!-- Контакты будут загружаться динамически -->
-                <div class="contact loading">
-                    <div class="contact-avatar"></div>
-                    <div class="contact-info">
-                        <div class="contact-name"></div>
-                        <div class="last-message"></div>
-                    </div>
-                </div>
+                <div class="no-contacts">Загружаем контакты...</div>
             </div>
 
             <div class="sidebar-footer">
@@ -61,7 +57,7 @@
                 <div class="chat-partner">
                     <div class="partner-avatar">
                         <img src="https://ui-avatars.com/api/?name=Друг&background=7C3AED&color=fff" alt="Avatar">
-                        <span class="status-indicator online"></span>
+                        <span class="status-indicator offline"></span>
                     </div>
                     <div class="partner-info">
                         <h3 id="chat-title">Выберите чат</h3>
@@ -111,6 +107,7 @@
             </div>
             <div class="voice-participants" id="voice-participants">
                 <!-- Участники голосового чата -->
+                <div class="no-participants">Нет участников</div>
             </div>
             <div class="voice-controls">
                 <button class="btn-voice-control mute"><i class="fas fa-microphone-slash"></i></button>
@@ -123,21 +120,59 @@
         </div>
     </div>
 
-    <!-- Модальное окно входа -->
-    <div class="modal" id="login-modal">
+    <!-- Модальное окно Google входа -->
+    <div class="modal" id="google-login-modal">
         <div class="modal-content">
-            <h2><i class="fas fa-water"></i> Вход в NeoCascade</h2>
-            <div class="login-form">
-                <input type="text" id="login-name" placeholder="Ваше имя" maxlength="20">
-                <button id="login-btn" class="btn-login">Войти в чат</button>
-                <p class="login-note">Используется анонимный вход. Ваши сообщения сохраняются в базе данных.</p>
+            <h2><i class="fas fa-water"></i> NeoCascade</h2>
+            <div class="welcome-message">
+                <div class="welcome-icon">
+                    <i class="fas fa-comments"></i>
+                </div>
+                <h3>Добро пожаловать!</h3>
+                <p>Войдите через Google чтобы начать общение</p>
+                
+                <button class="btn-login-google" id="google-login-btn">
+                    <i class="fab fa-google"></i> Войти через Google
+                </button>
+                
+                <p class="login-note">
+                    После входа вы сможете выбрать себе никнейм.
+                    При повторном посещении вы автоматически войдете в чат.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно выбора ника -->
+    <div class="modal" id="nickname-modal">
+        <div class="modal-content">
+            <div class="user-preview">
+                <img id="preview-avatar" src="" alt="Аватар">
+                <div id="preview-email"></div>
+            </div>
+            
+            <h3>Выберите ваш никнейм</h3>
+            <p>Это имя будет отображаться в чате</p>
+            
+            <div class="nickname-form">
+                <input type="text" id="nickname-input" placeholder="КрутойНик123" maxlength="20">
+                <div class="nickname-suggestions">
+                    <span>Примеры: </span>
+                    <button class="suggestion-btn" data-nick="КиберПутник">КиберПутник</button>
+                    <button class="suggestion-btn" data-nick="НеонВолна">НеонВолна</button>
+                    <button class="suggestion-btn" data-nick="КосмоЧаттер">КосмоЧаттер</button>
+                </div>
+                
+                <button class="btn-save-nickname" id="save-nickname-btn">
+                    <i class="fas fa-check"></i> Сохранить и войти
+                </button>
             </div>
         </div>
     </div>
 
     <!-- Модальное окно для создания объявлений -->
-    <div class="announcement-modal" id="announcement-modal">
-        <div class="announcement-modal-content">
+    <div class="modal announcement-modal" id="announcement-modal">
+        <div class="modal-content">
             <h3><i class="fas fa-bullhorn"></i> Создать объявление</h3>
             
             <div class="announcement-form">
@@ -167,6 +202,7 @@
         </div>
     </div>
 
-    <script src="script.js" type="module"></script>
+    <script type="module" src="firebase-config.js"></script>
+    <script type="module" src="script.js"></script>
 </body>
 </html>
