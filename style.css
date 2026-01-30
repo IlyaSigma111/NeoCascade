@@ -88,11 +88,13 @@ body {
     height: 45px;
     border-radius: 50%;
     border: 2px solid var(--accent-blue);
+    object-fit: cover;
 }
 
-.user-profile div {
+.user-info {
     display: flex;
     flex-direction: column;
+    flex: 1;
 }
 
 #username {
@@ -102,11 +104,32 @@ body {
 
 #user-status {
     font-size: 0.8rem;
-    color: var(--text-secondary);
 }
 
 #user-status.online {
     color: var(--online-status);
+}
+
+#user-status.offline {
+    color: var(--offline-status);
+}
+
+.logout-btn {
+    margin-top: 5px;
+    padding: 6px 12px;
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid #EF4444;
+    border-radius: 10px;
+    font-size: 0.8rem;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    width: fit-content;
+    cursor: pointer;
+}
+
+.logout-btn:hover {
+    background: rgba(239, 68, 68, 0.2);
 }
 
 .search-bar {
@@ -161,12 +184,13 @@ body {
     height: 45px;
     border-radius: 50%;
     margin-right: 15px;
-    background: linear-gradient(135deg, var(--accent-purple), var(--accent-blue));
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: bold;
-    color: white;
+    overflow: hidden;
+}
+
+.contact-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
 }
 
 .contact-info {
@@ -191,6 +215,13 @@ body {
     text-overflow: ellipsis;
 }
 
+.no-contacts {
+    text-align: center;
+    padding: 30px;
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
 .sidebar-footer {
     padding: 20px;
     border-top: 1px solid rgba(100, 255, 218, 0.1);
@@ -205,6 +236,7 @@ button {
     color: var(--text-primary);
     cursor: pointer;
     transition: all 0.2s;
+    font-family: inherit;
 }
 
 .btn-new-chat, .btn-voice-chat {
@@ -269,6 +301,7 @@ button {
     width: 50px;
     height: 50px;
     border-radius: 50%;
+    object-fit: cover;
 }
 
 .status-indicator {
@@ -283,6 +316,10 @@ button {
 
 .status-indicator.online {
     background: var(--online-status);
+}
+
+.status-indicator.offline {
+    background: var(--offline-status);
 }
 
 .partner-info h3 {
@@ -387,7 +424,7 @@ button {
 }
 
 /* Стили для объявлений */
-.announcement-message {
+.message.announcement-message {
     align-self: center !important;
     max-width: 85% !important;
     background: linear-gradient(135deg, #7C3AED, #4F46E5) !important;
@@ -414,6 +451,11 @@ button {
     font-size: 1.1rem;
     margin-bottom: 5px;
     color: #64FFDA;
+}
+
+.announcement-text {
+    margin: 10px 0;
+    font-size: 0.95rem;
 }
 
 .announcement-link {
@@ -597,6 +639,13 @@ button {
     margin-bottom: 10px;
 }
 
+.no-participants {
+    text-align: center;
+    color: var(--text-secondary);
+    padding: 20px;
+    font-style: italic;
+}
+
 .voice-controls {
     display: flex;
     justify-content: center;
@@ -646,7 +695,7 @@ button {
     right: 0;
     bottom: 0;
     background: rgba(10, 25, 47, 0.95);
-    display: flex;
+    display: none;
     align-items: center;
     justify-content: center;
     z-index: 1000;
@@ -658,9 +707,21 @@ button {
     border-radius: 20px;
     padding: 40px;
     width: 90%;
-    max-width: 400px;
+    max-width: 500px;
     border: 1px solid rgba(100, 255, 218, 0.2);
     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    animation: modalAppear 0.3s ease-out;
+}
+
+@keyframes modalAppear {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .modal-content h2 {
@@ -671,83 +732,166 @@ button {
     align-items: center;
     justify-content: center;
     gap: 15px;
-}
-
-.login-form {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-}
-
-#login-name {
-    padding: 15px 20px;
-    background: rgba(100, 255, 218, 0.1);
-    border: 1px solid rgba(100, 255, 218, 0.3);
-    border-radius: 15px;
-    color: var(--text-primary);
-    font-size: 1rem;
     text-align: center;
 }
 
-#login-name:focus {
+.modal-content h3 {
+    font-size: 1.5rem;
+    margin-bottom: 15px;
+    color: var(--accent-blue);
+    text-align: center;
+}
+
+.modal-content p {
+    text-align: center;
+    color: var(--text-secondary);
+    margin-bottom: 25px;
+}
+
+/* Стили для кнопок входа через Google */
+.welcome-icon {
+    font-size: 4rem;
+    color: var(--accent-blue);
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.btn-login-google {
+    width: 100%;
+    padding: 18px 20px;
+    background: #4285F4;
+    color: white;
+    border: none;
+    border-radius: 15px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+    margin: 25px 0;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.btn-login-google:hover {
+    background: #3367D6;
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(66, 133, 244, 0.3);
+}
+
+.btn-login-google i {
+    font-size: 1.3rem;
+}
+
+.login-note {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    text-align: center;
+    line-height: 1.4;
+    margin-top: 20px;
+}
+
+/* Окно выбора ника */
+.user-preview {
+    text-align: center;
+    margin-bottom: 25px;
+    padding: 20px;
+    background: rgba(100, 255, 218, 0.05);
+    border-radius: 15px;
+}
+
+#preview-avatar {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    border: 3px solid var(--accent-blue);
+    margin-bottom: 10px;
+    object-fit: cover;
+}
+
+#preview-email {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    word-break: break-all;
+}
+
+.nickname-form {
+    margin-top: 20px;
+}
+
+#nickname-input {
+    width: 100%;
+    padding: 15px 20px;
+    background: rgba(100, 255, 218, 0.1);
+    border: 2px solid rgba(100, 255, 218, 0.3);
+    border-radius: 15px;
+    color: var(--text-primary);
+    font-size: 1.1rem;
+    text-align: center;
+    margin-bottom: 15px;
+}
+
+#nickname-input:focus {
     outline: none;
     border-color: var(--accent-blue);
 }
 
-.btn-login {
-    padding: 15px 20px;
-    background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
-    border-radius: 15px;
-    font-weight: 600;
-    font-size: 1rem;
-    text-transform: uppercase;
-    letter-spacing: 1px;
+.nickname-suggestions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 20px;
+    align-items: center;
+    justify-content: center;
 }
 
-.btn-login:hover {
+.nickname-suggestions span {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.suggestion-btn {
+    padding: 8px 15px;
+    background: rgba(124, 58, 237, 0.1);
+    border: 1px solid var(--accent-purple);
+    border-radius: 20px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.suggestion-btn:hover {
+    background: rgba(124, 58, 237, 0.2);
+    transform: translateY(-2px);
+}
+
+.btn-save-nickname {
+    width: 100%;
+    padding: 18px 20px;
+    background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+    color: white;
+    border: none;
+    border-radius: 15px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.btn-save-nickname:hover {
     transform: translateY(-2px);
     box-shadow: 0 10px 20px rgba(100, 255, 218, 0.2);
 }
 
-.login-note {
-    font-size: 0.8rem;
-    color: var(--text-secondary);
-    text-align: center;
-    line-height: 1.4;
-    margin-top: 15px;
-}
-
 /* Модальное окно для объявлений */
-.announcement-modal {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(10, 25, 47, 0.95);
-    z-index: 1000;
-    align-items: center;
-    justify-content: center;
-    backdrop-filter: blur(5px);
-}
-
-.announcement-modal-content {
-    background: var(--secondary-dark);
-    padding: 30px;
-    border-radius: 20px;
-    width: 90%;
+.announcement-modal .modal-content {
     max-width: 500px;
     border: 2px solid var(--accent-purple);
-    box-shadow: 0 20px 40px rgba(124, 58, 237, 0.2);
-}
-
-.announcement-modal h3 {
-    color: var(--accent-blue);
-    margin-bottom: 20px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
 }
 
 .announcement-form {
@@ -783,6 +927,9 @@ button {
     border-radius: 15px;
     font-weight: 600;
     background: linear-gradient(135deg, var(--accent-purple), #4F46E5);
+    border: none;
+    cursor: pointer;
+    color: white;
 }
 
 .btn-cancel {
@@ -792,6 +939,16 @@ button {
     font-weight: 600;
     background: rgba(239, 68, 68, 0.2);
     border: 1px solid #EF4444;
+    cursor: pointer;
+    color: white;
+}
+
+.btn-cancel:hover {
+    background: rgba(239, 68, 68, 0.3);
+}
+
+.btn-announce:hover {
+    background: linear-gradient(135deg, #6D28D9, #4338CA);
 }
 
 /* Мобильная адаптация */
@@ -806,6 +963,7 @@ button {
         left: 0;
         bottom: 0;
         transform: translateX(-100%);
+        width: 280px;
     }
     
     .sidebar.active {
@@ -829,7 +987,7 @@ button {
         max-width: 85%;
     }
     
-    .announcement-message {
+    .message.announcement-message {
         max-width: 95% !important;
     }
     
@@ -838,13 +996,18 @@ button {
     }
     
     .modal-content {
-        padding: 30px 20px;
-        margin: 20px;
+        padding: 25px 15px;
+        margin: 15px;
     }
     
-    .announcement-modal-content {
-        padding: 20px;
-        margin: 20px;
+    .welcome-icon {
+        font-size: 3rem;
+    }
+    
+    .btn-login-google,
+    .btn-save-nickname {
+        padding: 15px;
+        font-size: 1rem;
     }
 }
 
