@@ -2,425 +2,183 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NeoCascade Messenger</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#0F172A">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
-    <!-- Фоновые частицы -->
-    <div class="particles-container">
-        <div class="particle"></div>
-        <div class="particle"></div>
-        <div class="particle"></div>
-        <div class="particle"></div>
-        <div class="particle"></div>
-    </div>
-
-    <!-- Видеозвонок -->
-    <div id="video-call-container" class="video-call-container">
-        <div class="video-controls glass">
-            <button class="call-btn" id="toggle-video">
-                <i class="fas fa-video"></i>
-                <div class="btn-tooltip">Видео</div>
-            </button>
-            <button class="call-btn" id="toggle-audio">
-                <i class="fas fa-microphone"></i>
-                <div class="btn-tooltip">Микрофон</div>
-            </button>
-            <button class="call-btn" id="screen-share">
-                <i class="fas fa-desktop"></i>
-                <div class="btn-tooltip">Экран</div>
-            </button>
-            <button class="call-btn end-call" id="end-call">
-                <i class="fas fa-phone-slash"></i>
-                <div class="btn-tooltip">Завершить</div>
-            </button>
-        </div>
-        <div class="video-grid">
-            <div class="video-wrapper local glass">
-                <video id="local-video" autoplay muted playsinline></video>
-                <div class="video-label glass">
-                    <span class="user-tag">Вы</span>
-                    <span class="status-dot online"></span>
+    <!-- Модальное окно входа -->
+    <div id="login-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fas fa-water"></i> NeoCascade</h2>
+                <p>Быстрое и безопасное общение</p>
+            </div>
+            
+            <div class="modal-body">
+                <div id="login-form">
+                    <div class="form-group">
+                        <input type="email" id="login-email" placeholder="Email" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <input type="password" id="login-password" placeholder="Пароль" required>
+                    </div>
+                    
+                    <button class="btn btn-primary" id="email-login-btn">
+                        <i class="fas fa-sign-in-alt"></i> Войти
+                    </button>
+                    
+                    <div class="divider">или</div>
+                    
+                    <button class="btn btn-google" id="google-login-btn">
+                        <i class="fab fa-google"></i> Войти через Google
+                    </button>
+                    
+                    <p class="switch-form">
+                        Нет аккаунта? <a href="#" id="show-register">Зарегистрироваться</a>
+                    </p>
+                </div>
+                
+                <div id="register-form" style="display: none;">
+                    <div class="form-group">
+                        <input type="text" id="register-name" placeholder="Имя пользователя" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <input type="email" id="register-email" placeholder="Email" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <input type="password" id="register-password" placeholder="Пароль (мин. 6 символов)" required>
+                    </div>
+                    
+                    <button class="btn btn-primary" id="email-register-btn">
+                        <i class="fas fa-user-plus"></i> Зарегистрироваться
+                    </button>
+                    
+                    <p class="switch-form">
+                        Уже есть аккаунт? <a href="#" id="show-login">Войти</a>
+                    </p>
                 </div>
             </div>
-            <div id="remote-videos" class="remote-videos"></div>
         </div>
-        <div class="call-info glass">
-            <span id="call-timer"><i class="fas fa-clock"></i> 00:00</span>
-            <span id="call-participants"><i class="fas fa-users"></i> 1</span>
-            <span id="call-quality"><i class="fas fa-signal"></i> Отличное</span>
+    </div>
+
+    <!-- Видеозвонок (скрыт по умолчанию) -->
+    <div id="video-call-container" class="video-call">
+        <div class="video-grid">
+            <div class="video-wrapper">
+                <video id="local-video" autoplay muted playsinline></video>
+                <div class="video-label">Вы</div>
+            </div>
+            <div id="remote-videos"></div>
+        </div>
+        <div class="video-controls">
+            <button class="btn-call" id="toggle-video">
+                <i class="fas fa-video"></i>
+            </button>
+            <button class="btn-call" id="toggle-audio">
+                <i class="fas fa-microphone"></i>
+            </button>
+            <button class="btn-call btn-end" id="end-call">
+                <i class="fas fa-phone-slash"></i>
+            </button>
         </div>
     </div>
 
     <!-- Основной интерфейс -->
-    <div class="app-container">
+    <div class="container">
         <!-- Сайдбар -->
-        <div class="sidebar glass">
+        <div class="sidebar">
             <div class="sidebar-header">
-                <div class="app-title">
-                    <div class="logo-icon">
-                        <i class="fas fa-water animate__animated animate__pulse animate__infinite"></i>
-                    </div>
-                    <div>
-                        <h1 class="neon-text">NeoCascade</h1>
-                        <p class="app-subtitle">v2.0 Quantum</p>
-                    </div>
+                <div class="app-logo">
+                    <i class="fas fa-water"></i>
+                    <h1>NeoCascade</h1>
                 </div>
-                
                 <div class="user-profile">
-                    <div class="avatar-wrapper">
-                        <div class="avatar glass" id="user-avatar">
-                            <i class="fas fa-user"></i>
-                        </div>
-                        <div class="user-status online"></div>
+                    <div class="avatar" id="user-avatar">
+                        <i class="fas fa-user"></i>
                     </div>
                     <div class="user-info">
-                        <span id="username">Загрузка...</span>
-                        <small id="user-tag">#0000</small>
+                        <span id="username">Гость</span>
+                        <small id="user-status">не в сети</small>
                     </div>
-                    <div class="user-controls">
-                        <button class="icon-btn small theme-toggle" title="Сменить тему">
-                            <i class="fas fa-palette"></i>
-                        </button>
-                        <button class="icon-btn small" id="logout-btn" title="Выйти">
-                            <i class="fas fa-sign-out-alt"></i>
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Поиск и создание -->
-            <div class="search-create-section">
-                <div class="search-container glass">
-                    <i class="fas fa-search"></i>
-                    <input type="text" id="user-search" placeholder="Найти: username#1234">
-                    <button class="search-btn" id="search-user">
-                        <i class="fas fa-arrow-right"></i>
+                    <button class="btn-icon" id="logout-btn">
+                        <i class="fas fa-sign-out-alt"></i>
                     </button>
                 </div>
-                <button class="create-btn glass" id="create-channel-btn">
-                    <i class="fas fa-plus-circle"></i>
-                    <span>Создать чат</span>
-                </button>
             </div>
 
             <!-- Список чатов -->
-            <div class="chats-section">
-                <div class="section-header">
-                    <h3><i class="fas fa-hashtag"></i> Каналы</h3>
-                    <button class="icon-btn small" id="refresh-chats">
-                        <i class="fas fa-sync-alt"></i>
+            <div class="chat-list">
+                <div class="chat-item active" data-chat="general">
+                    <div class="chat-icon">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <div class="chat-info">
+                        <div class="chat-name">Общий чат</div>
+                        <div class="chat-preview">Присоединяйтесь к беседе</div>
+                    </div>
+                    <button class="btn-call-mini" data-chat="general">
+                        <i class="fas fa-video"></i>
                     </button>
                 </div>
-                <div class="chats-list" id="chats-list">
-                    <div class="chat-item active" data-chat-id="general">
-                        <div class="chat-icon">
-                            <i class="fas fa-globe"></i>
-                        </div>
-                        <div class="chat-details">
-                            <div class="chat-name">🌍 Общий чат</div>
-                            <div class="chat-activity">
-                                <span class="online-count">0 онлайн</span>
-                                <span class="last-msg">Присоединяйтесь</span>
-                            </div>
-                        </div>
-                        <div class="chat-badge">
-                            <i class="fas fa-bolt"></i>
-                        </div>
-                    </div>
-                </div>
+                <!-- Контакты появятся здесь -->
             </div>
 
-            <!-- ЛС -->
-            <div class="dms-section">
-                <div class="section-header">
-                    <h3><i class="fas fa-user-friends"></i> ЛС</h3>
-                    <span class="badge" id="dm-count">0</span>
-                </div>
-                <div class="dms-list" id="dms-list"></div>
-            </div>
-
-            <!-- Кнопка видеозвонка -->
-            <button class="floating-action-btn glass" id="start-group-call">
+            <!-- Кнопка звонка -->
+            <button class="btn-video" id="start-group-call">
                 <i class="fas fa-video"></i>
-                <span class="pulse-ring"></span>
+                <span>Начать видеозвонок</span>
             </button>
         </div>
 
         <!-- Область чата -->
-        <div class="chat-area glass">
+        <div class="chat-area">
             <!-- Заголовок чата -->
-            <div class="chat-header glass">
-                <div class="chat-partner">
-                    <div class="avatar-wrapper">
-                        <div class="avatar">
-                            <i class="fas fa-globe"></i>
-                        </div>
-                        <div class="chat-status online"></div>
+            <div class="chat-header">
+                <div class="chat-title">
+                    <div class="avatar">
+                        <i class="fas fa-users"></i>
                     </div>
-                    <div class="chat-info">
+                    <div>
                         <h3 id="chat-title">Общий чат</h3>
-                        <p id="chat-topic">Глобальное общение</p>
+                        <p id="chat-status">войдите в систему</p>
                     </div>
                 </div>
                 <div class="chat-actions">
-                    <button class="action-btn" id="pin-messages" title="Закрепленные">
-                        <i class="fas fa-thumbtack"></i>
-                    </button>
-                    <button class="action-btn" id="notifications-toggle" title="Уведомления">
-                        <i class="fas fa-bell"></i>
-                    </button>
-                    <button class="action-btn" id="chat-info-btn" title="Информация">
-                        <i class="fas fa-info-circle"></i>
-                    </button>
-                    <button class="action-btn call-btn-glow" id="join-call-btn" title="Присоединиться">
+                    <button class="btn-icon" id="join-call-btn" disabled>
                         <i class="fas fa-video"></i>
-                        <span class="call-indicator"></span>
                     </button>
                 </div>
             </div>
 
             <!-- Сообщения -->
-            <div class="messages-container" id="messages-container">
-                <div class="welcome-screen animate__animated animate__fadeIn">
+            <div class="messages" id="messages-container">
+                <div class="welcome">
                     <div class="welcome-icon">
                         <i class="fas fa-water"></i>
                     </div>
-                    <h2>Добро пожаловать в NeoCascade</h2>
-                    <p>Квантовое общение нового поколения</p>
-                    <div class="features-grid">
-                        <div class="feature">
-                            <i class="fas fa-bolt"></i>
-                            <span>Молниеносные сообщения</span>
-                        </div>
-                        <div class="feature">
-                            <i class="fas fa-shield-alt"></i>
-                            <span>Шифрование</span>
-                        </div>
-                        <div class="feature">
-                            <i class="fas fa-video"></i>
-                            <span>4K видеозвонки</span>
-                        </div>
-                        <div class="feature">
-                            <i class="fas fa-gamepad"></i>
-                            <span>Мини-игры</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Эмоции -->
-            <div class="emoji-picker glass" id="emoji-picker">
-                <div class="emoji-categories">
-                    <button class="emoji-category active">😀</button>
-                    <button class="emoji-category">👍</button>
-                    <button class="emoji-category">🎮</button>
-                    <button class="emoji-category">🦄</button>
-                </div>
-                <div class="emoji-grid">
-                    <!-- Эмодзи будут добавляться динамически -->
+                    <h2>NeoCascade Messenger</h2>
+                    <p>Быстрое и безопасное общение</p>
+                    <p class="hint">Войдите в систему, чтобы начать общаться</p>
                 </div>
             </div>
 
             <!-- Ввод сообщения -->
-            <div class="message-input glass">
-                <div class="input-actions">
-                    <button class="input-action-btn" id="attach-btn" title="Прикрепить файл">
-                        <i class="fas fa-paperclip"></i>
-                    </button>
-                    <button class="input-action-btn" id="emoji-btn" title="Эмодзи">
-                        <i class="fas fa-smile"></i>
-                    </button>
-                    <button class="input-action-btn" id="voice-btn" title="Голосовое сообщение">
-                        <i class="fas fa-microphone"></i>
-                    </button>
-                </div>
-                <div class="input-wrapper">
-                    <input type="text" id="message-input" placeholder="Напишите сообщение... (используйте / для команд)">
-                    <div class="typing-indicator" id="typing-indicator">
-                        <span></span>
-                        <span></span>
-                        <span></span>
-                    </div>
-                </div>
-                <button class="send-btn glow" id="send-btn">
+            <div class="message-input">
+                <input type="text" id="message-input" placeholder="Войдите, чтобы отправлять сообщения" disabled>
+                <button class="btn-send" id="send-btn" disabled>
                     <i class="fas fa-paper-plane"></i>
-                    <div class="send-wave"></div>
                 </button>
             </div>
         </div>
     </div>
 
-    <!-- Модальные окна -->
-    <div class="login-modal" id="login-modal">
-        <div class="login-container glass animate__animated animate__zoomIn">
-            <div class="login-header">
-                <div class="logo-spin">
-                    <i class="fas fa-water"></i>
-                </div>
-                <h2 class="neon-text">NeoCascade</h2>
-                <p>Квантовая авторизация</p>
-            </div>
-            
-            <div class="login-form">
-                <div class="form-group floating-label">
-                    <input type="email" id="login-email" required>
-                    <label>Email</label>
-                    <i class="fas fa-envelope"></i>
-                </div>
-                
-                <div class="form-group floating-label">
-                    <input type="password" id="login-password" required>
-                    <label>Пароль</label>
-                    <i class="fas fa-lock"></i>
-                </div>
-                
-                <button class="btn-primary glow" id="email-login-btn">
-                    <i class="fas fa-sign-in-alt"></i> Войти в систему
-                </button>
-                
-                <div class="divider">
-                    <span>или продолжение через</span>
-                </div>
-                
-                <div class="social-login">
-                    <button class="social-btn google" id="google-login-btn">
-                        <i class="fab fa-google"></i>
-                    </button>
-                    <button class="social-btn github" id="github-login-btn">
-                        <i class="fab fa-github"></i>
-                    </button>
-                    <button class="social-btn discord" id="discord-login-btn">
-                        <i class="fab fa-discord"></i>
-                    </button>
-                </div>
-                
-                <p class="register-link">
-                    Нет квантового аккаунта? 
-                    <a href="#" id="show-register" class="neon-link">
-                        Создать туннель
-                    </a>
-                </p>
-            </div>
-        </div>
-        
-        <!-- Форма регистрации -->
-        <div class="register-form glass" id="register-form">
-            <div class="login-header">
-                <div class="logo-spin">
-                    <i class="fas fa-user-astronaut"></i>
-                </div>
-                <h2 class="neon-text">Квантовая регистрация</h2>
-                <p>Станьте частью потока</p>
-            </div>
-            
-            <div class="login-form">
-                <div class="form-group floating-label">
-                    <input type="text" id="register-name" required>
-                    <label>Имя пользователя</label>
-                    <i class="fas fa-user"></i>
-                </div>
-                
-                <div class="form-group floating-label">
-                    <input type="email" id="register-email" required>
-                    <label>Email</label>
-                    <i class="fas fa-envelope"></i>
-                </div>
-                
-                <div class="form-group floating-label">
-                    <input type="password" id="register-password" required>
-                    <label>Пароль (мин. 8 символов)</label>
-                    <i class="fas fa-lock"></i>
-                </div>
-                
-                <div class="form-group floating-label">
-                    <input type="password" id="register-password-confirm" required>
-                    <label>Подтверждение пароля</label>
-                    <i class="fas fa-lock"></i>
-                </div>
-                
-                <button class="btn-primary glow" id="email-register-btn">
-                    <i class="fas fa-user-plus"></i> Создать квантовый аккаунт
-                </button>
-                
-                <p class="register-link">
-                    Уже в потоке? 
-                    <a href="#" id="show-login" class="neon-link">
-                        Войти в туннель
-                    </a>
-                </p>
-            </div>
-        </div>
-    </div>
-
-    <!-- Модалка создания чата -->
-    <div class="modal glass" id="create-channel-modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>Создание квантового канала</h3>
-                <button class="modal-close">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div class="form-group">
-                    <label>Название канала</label>
-                    <input type="text" id="channel-name" placeholder="Например: Гейминг">
-                </div>
-                <div class="form-group">
-                    <label>Топик (необязательно)</label>
-                    <input type="text" id="channel-topic" placeholder="О чем этот канал?">
-                </div>
-                <div class="form-group">
-                    <label>Тип канала</label>
-                    <select id="channel-type">
-                        <option value="public">🌍 Публичный</option>
-                        <option value="private">🔒 Приватный</option>
-                        <option value="voice">🎤 Голосовой</option>
-                    </select>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn-secondary" id="cancel-create">Отмена</button>
-                <button class="btn-primary glow" id="confirm-create">Создать поток</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Голосовая запись -->
-    <div class="voice-recorder glass" id="voice-recorder">
-        <div class="voice-wave">
-            <canvas id="voice-waveform"></canvas>
-        </div>
-        <div class="voice-controls">
-            <button class="voice-btn" id="cancel-recording">
-                <i class="fas fa-times"></i>
-            </button>
-            <div class="recording-time">
-                <i class="fas fa-circle"></i>
-                <span id="recording-timer">00:00</span>
-            </div>
-            <button class="voice-btn send" id="send-recording">
-                <i class="fas fa-paper-plane"></i>
-            </button>
-        </div>
-    </div>
-
-    <!-- Системные уведомления -->
-    <div class="notifications-container" id="notifications-container"></div>
-
-    <!-- Скрипты -->
     <script type="module" src="firebase-config.js"></script>
     <script type="module" src="script.js"></script>
-    <script>
-        // PWA установка
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('sw.js');
-        }
-    </script>
 </body>
 </html>
