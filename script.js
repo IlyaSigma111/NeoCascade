@@ -1,1323 +1,681 @@
 import { 
-    database, ref, push, onValue, set, get, child, 
+    database, ref, push, onValue, set, get, child,
     auth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
-    signInWithPopup, googleProvider, onAuthStateChanged, signOut, updateProfile 
+    signInWithPopup, googleProvider, onAuthStateChanged, signOut, updateProfile
 } from './firebase-config.js';
 
-// Конфигурация
-const CONFIG = {
-    ICE_SERVERS: [
-        { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' }
-    ],
-    DEFAULT_DISCRIMINATOR: '0000',
-    MAX_CHANNELS: 50,
-    MESSAGES_PER_LOAD: 100,
-    TYPING_TIMEOUT: 3000
-};
-
 // Глобальное состояние
-let state = {
-    currentUser: null,
-    currentChat: 'general',
-    currentChatType: 'channel',
-    contacts: new Map(),
-    channels: new Map(),
-    dms: new Map(),
-    messages: new Map(),
-    typingUsers: new Map(),
-    
-    // Звонки
-    localStream: null,
-    peerConnections: new Map(),
-    callActive: false,
-    callStartTime: null,
-    callTimer: null,
-    screenStream: null,
-    
-    // UI
-    theme: 'dark',
-    notifications: true,
-    emojiPickerOpen: false,
-    voiceRecording: false,
-    mediaRecorder: null,
-    audioChunks: []
-};
+let currentUser = null;
+let currentChat = 'general';
+let contacts = [];
+let activeCall = false;
 
-// Инициализация
+// Инициализация приложения
 document.addEventListener('DOMContentLoaded', () => {
-    initApp();
-    setupEventListeners();
-    initSoundEffects();
-    setupServiceWorker();
-});
-
-// ==================== ИНИЦИАЛИЗАЦИЯ ====================
-function initApp() {
-    // Проверяем тему
-    const savedTheme = localStorage.getItem('neocascade-theme');
-    if (savedTheme) {
-        switchTheme(savedTheme);
-        state.theme = savedTheme;
-    }
-    
-    // Авторизация
-    onAuthStateChanged(auth, async (user) => {
+    // Проверяем авторизацию
+    onAuthStateChanged(auth, (user) => {
         if (user) {
-            await handleUserLogin(user);
+            handleUserLogin(user);
         } else {
             showLoginModal();
         }
     });
-    
-    // Инициализируем звуки
-    initSoundEffects();
-}
+
+    // Обработчики событий
+    setupEventListeners();
+});
 
 function setupEventListeners() {
-    // Навигация
+    // Переключение форм
     document.getElementById('show-register').addEventListener('click', (e) => {
         e.preventDefault();
-        toggleForms();
+        document.getElementById('login-form').style.display = 'none';
+        document.getElementById('register-form').style.display = 'block';
     });
-    
+
     document.getElementById('show-login').addEventListener('click', (e) => {
         e.preventDefault();
-        toggleForms();
+        document.getElementById('register-form').style.display = 'none';
+        document.getElementById('login-form').style.display = 'block';
     });
-    
+
     // Авторизация
     document.getElementById('email-login-btn').addEventListener('click', handleEmailLogin);
     document.getElementById('google-login-btn').addEventListener('click', handleGoogleLogin);
-    document.getElementById('github-login-btn').addEventListener('click', handleSocialLogin);
-    document.getElementById('discord-login-btn').addEventListener('click', handleSocialLogin);
     document.getElementById('email-register-btn').addEventListener('click', handleEmailRegister);
-    
+
     // Сообщения
     document.getElementById('send-btn').addEventListener('click', sendMessage);
-    document.getElementById('message-input').addEventListener('input', handleTyping);
     document.getElementById('message-input').addEventListener('keypress', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
             sendMessage();
         }
     });
-    
-    // Поиск пользователей
-    document.getElementById('search-user').addEventListener('click', searchUser);
-    document.getElementById('user-search').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') searchUser();
-    });
-    
-    // Создание каналов
-    document.getElementById('create-channel-btn').addEventListener('click', showCreateChannelModal);
-    document.getElementById('confirm-create').addEventListener('click', createChannel);
-    document.getElementById('cancel-create').addEventListener('click', hideCreateChannelModal);
-    document.querySelector('.modal-close').addEventListener('click', hideCreateChannelModal);
-    
+
+    // Выход
+    document.getElementById('logout-btn').addEventListener('click', handleLogout);
+
     // Звонки
-    document.getElementById('start-group-call').addEventListener('click', startGroupCall);
+    document.getElementById('start-group-call').addEventListener('click', startCall);
     document.getElementById('join-call-btn').addEventListener('click', joinCall);
     document.getElementById('end-call').addEventListener('click', endCall);
     document.getElementById('toggle-video').addEventListener('click', toggleVideo);
     document.getElementById('toggle-audio').addEventListener('click', toggleAudio);
-    document.getElementById('screen-share').addEventListener('click', toggleScreenShare);
-    
-    // Голосовые сообщения
-    document.getElementById('voice-btn').addEventListener('click', toggleVoiceRecording);
-    document.getElementById('cancel-recording').addEventListener('click', cancelVoiceRecording);
-    document.getElementById('send-recording').addEventListener('click', sendVoiceMessage);
-    
-    // Эмодзи
-    document.getElementById('emoji-btn').addEventListener('click', toggleEmojiPicker);
+
+    // Выбор чата
     document.addEventListener('click', (e) => {
-        if (!e.target.closest('#emoji-picker') && !e.target.closest('#emoji-btn')) {
-            hideEmojiPicker();
+        const chatItem = e.target.closest('.chat-item');
+        if (chatItem) {
+            selectChat(chatItem.dataset.chat);
         }
     });
-    
-    // Темы
-    document.querySelector('.theme-toggle').addEventListener('click', toggleTheme);
-    
-    // Уведомления
-    document.getElementById('notifications-toggle').addEventListener('click', toggleNotifications);
-    
-    // Файлы
-    document.getElementById('attach-btn').addEventListener('click', openFilePicker);
-    
-    // Рефреш
-    document.getElementById('refresh-chats').addEventListener('click', refreshData);
-    
-    // Выход
-    document.getElementById('logout-btn').addEventListener('click', handleLogout);
-    
-    // Команды
-    setupCommands();
 }
 
-// ==================== АУТЕНТИФИКАЦИЯ ====================
+// Вход по email
 async function handleEmailLogin() {
     const email = document.getElementById('login-email').value.trim();
     const password = document.getElementById('login-password').value.trim();
-    
+
     if (!email || !password) {
         showNotification('Заполните все поля', 'error');
         return;
     }
-    
+
     const btn = document.getElementById('email-login-btn');
-    btn.innerHTML = '<div class="loading"></div>';
     btn.disabled = true;
-    
+    btn.innerHTML = '<div class="loading"></div>';
+
     try {
         await signInWithEmailAndPassword(auth, email, password);
-        playSound('login');
-        showNotification('Квантовый вход успешен!', 'success');
+        showNotification('Вход выполнен успешно', 'success');
     } catch (error) {
-        console.error('Login error:', error);
-        showNotification('Ошибка входа: ' + error.message, 'error');
+        console.error('Ошибка входа:', error);
+        showNotification(getAuthErrorMessage(error), 'error');
     } finally {
-        btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Войти в систему';
         btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Войти';
     }
 }
 
+// Вход через Google
 async function handleGoogleLogin() {
+    const btn = document.getElementById('google-login-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<div class="loading"></div>';
+
     try {
         await signInWithPopup(auth, googleProvider);
-        playSound('login');
-        showNotification('Гугл-авторизация успешна!', 'success');
+        showNotification('Вход через Google выполнен', 'success');
     } catch (error) {
-        showNotification('Ошибка Google входа', 'error');
+        console.error('Ошибка Google входа:', error);
+        showNotification(getAuthErrorMessage(error), 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fab fa-google"></i> Войти через Google';
     }
 }
 
+// Регистрация
 async function handleEmailRegister() {
     const name = document.getElementById('register-name').value.trim();
     const email = document.getElementById('register-email').value.trim();
     const password = document.getElementById('register-password').value;
-    const confirm = document.getElementById('register-password-confirm').value;
-    
-    // Валидация
+
     if (!name || !email || !password) {
         showNotification('Заполните все поля', 'error');
         return;
     }
-    
-    if (name.length < 3) {
-        showNotification('Имя должно быть от 3 символов', 'error');
+
+    if (name.length < 2) {
+        showNotification('Имя должно быть от 2 символов', 'error');
         return;
     }
-    
-    if (password.length < 8) {
-        showNotification('Пароль от 8 символов', 'error');
+
+    if (password.length < 6) {
+        showNotification('Пароль должен быть от 6 символов', 'error');
         return;
     }
-    
-    if (password !== confirm) {
-        showNotification('Пароли не совпадают', 'error');
-        return;
-    }
-    
+
     const btn = document.getElementById('email-register-btn');
-    btn.innerHTML = '<div class="loading"></div>';
     btn.disabled = true;
-    
+    btn.innerHTML = '<div class="loading"></div>';
+
     try {
-        // Регистрируем
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
-        
-        // Генерируем дискриминатор
-        const discriminator = generateDiscriminator();
-        const displayName = `${name}#${discriminator}`;
-        
+
         // Обновляем профиль
         await updateProfile(user, {
-            displayName: displayName,
-            photoURL: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=3B82F6&color=fff&bold=true`
+            displayName: name,
+            photoURL: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=3B82F6&color=fff`
         });
-        
-        // Сохраняем в БД
-        const userData = {
+
+        // Сохраняем в базу данных
+        await set(ref(database, `users/${user.uid}`), {
             uid: user.uid,
             email: user.email,
-            username: name,
-            discriminator: discriminator,
-            displayName: displayName,
-            photoURL: user.photoURL,
-            bio: 'Новый пользователь NeoCascade',
-            status: 'online',
-            statusText: 'В потоке...',
-            lastSeen: Date.now(),
-            createdAt: Date.now(),
-            badges: ['newbie'],
-            theme: 'dark'
-        };
-        
-        await set(ref(database, `users/${user.uid}`), userData);
-        
-        playSound('success');
-        showNotification('Квантовый аккаунт создан!', 'success');
-        
-    } catch (error) {
-        console.error('Register error:', error);
-        showNotification('Ошибка: ' + error.message, 'error');
-    } finally {
-        btn.innerHTML = '<i class="fas fa-user-plus"></i> Создать квантовый аккаунт';
-        btn.disabled = false;
-    }
-}
-
-// ==================== СИСТЕМА ДИСКРИМИНАТОРОВ ====================
-function generateDiscriminator() {
-    return Math.floor(1000 + Math.random() * 9000).toString();
-}
-
-function formatDisplayName(username, discriminator) {
-    return `${username}#${discriminator}`;
-}
-
-// ==================== ПОИСК ПОЛЬЗОВАТЕЛЕЙ ====================
-async function searchUser() {
-    const searchInput = document.getElementById('user-search').value.trim();
-    
-    if (!searchInput) {
-        showNotification('Введите username#1234', 'warning');
-        return;
-    }
-    
-    // Проверяем формат
-    const match = searchInput.match(/^(.+)#(\d{4})$/);
-    if (!match) {
-        showNotification('Формат: username#1234', 'error');
-        return;
-    }
-    
-    const [_, username, discriminator] = match;
-    
-    try {
-        // Ищем в Firebase
-        const usersRef = ref(database, 'users');
-        const snapshot = await get(usersRef);
-        
-        if (!snapshot.exists()) {
-            showNotification('Пользователь не найден', 'error');
-            return;
-        }
-        
-        const allUsers = snapshot.val();
-        const targetUser = Object.values(allUsers).find(user => 
-            user.username.toLowerCase() === username.toLowerCase() && 
-            user.discriminator === discriminator
-        );
-        
-        if (!targetUser) {
-            showNotification('Пользователь не найден', 'error');
-            return;
-        }
-        
-        // Открываем ЛС
-        await openDM(targetUser.uid, targetUser);
-        document.getElementById('user-search').value = '';
-        
-    } catch (error) {
-        console.error('Search error:', error);
-        showNotification('Ошибка поиска', 'error');
-    }
-}
-
-// ==================== КАНАЛЫ И ЧАТЫ ====================
-async function createChannel() {
-    const name = document.getElementById('channel-name').value.trim();
-    const topic = document.getElementById('channel-topic').value.trim();
-    const type = document.getElementById('channel-type').value;
-    
-    if (!name) {
-        showNotification('Введите название канала', 'error');
-        return;
-    }
-    
-    try {
-        const channelId = `channel_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        const channelRef = ref(database, `channels/${channelId}`);
-        
-        const channelData = {
-            id: channelId,
             name: name,
-            topic: topic,
-            type: type,
-            createdBy: state.currentUser.uid,
-            createdAt: Date.now(),
-            members: {
-                [state.currentUser.uid]: true
-            },
-            settings: {
-                nsfw: false,
-                slowmode: 0,
-                readOnly: false
-            }
+            photoURL: user.photoURL,
+            online: true,
+            lastSeen: Date.now(),
+            createdAt: Date.now()
+        });
+
+        showNotification('Регистрация успешна!', 'success');
+
+        // Переключаемся на форму входа
+        document.getElementById('register-form').style.display = 'none';
+        document.getElementById('login-form').style.display = 'block';
+
+    } catch (error) {
+        console.error('Ошибка регистрации:', error);
+        showNotification(getAuthErrorMessage(error), 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-user-plus"></i> Зарегистрироваться';
+    }
+}
+
+// Обработка входа пользователя
+async function handleUserLogin(firebaseUser) {
+    // Получаем данные пользователя
+    const userRef = ref(database, `users/${firebaseUser.uid}`);
+    const snapshot = await get(userRef);
+
+    let userData;
+    if (snapshot.exists()) {
+        userData = snapshot.val();
+    } else {
+        userData = {
+            uid: firebaseUser.uid,
+            email: firebaseUser.email,
+            name: firebaseUser.displayName || firebaseUser.email.split('@')[0],
+            photoURL: firebaseUser.photoURL,
+            online: true,
+            lastSeen: Date.now(),
+            createdAt: Date.now()
         };
-        
-        await set(channelRef, channelData);
-        
-        // Подписываемся на канал
-        state.channels.set(channelId, channelData);
-        addChannelToUI(channelData);
-        
-        hideCreateChannelModal();
-        playSound('create');
-        showNotification(`Канал "${name}" создан!`, 'success');
-        
-    } catch (error) {
-        console.error('Create channel error:', error);
-        showNotification('Ошибка создания канала', 'error');
+        await set(userRef, userData);
+    }
+
+    // Обновляем онлайн статус
+    await set(ref(database, `users/${firebaseUser.uid}/online`), true);
+    await set(ref(database, `users/${firebaseUser.uid}/lastSeen`), Date.now());
+
+    // Сохраняем пользователя
+    currentUser = {
+        uid: firebaseUser.uid,
+        name: userData.name,
+        email: userData.email,
+        photoURL: userData.photoURL
+    };
+
+    // Обновляем UI
+    hideLoginModal();
+    updateUserProfile();
+    loadContacts();
+    setupPresence();
+    enableChat();
+    loadMessages();
+}
+
+// Обновление профиля в UI
+function updateUserProfile() {
+    document.getElementById('username').textContent = currentUser.name;
+    document.getElementById('user-status').textContent = 'в сети';
+    document.getElementById('user-status').classList.remove('offline');
+    document.getElementById('user-status').classList.add('online');
+
+    const avatar = document.getElementById('user-avatar');
+    if (currentUser.photoURL) {
+        avatar.innerHTML = `<img src="${currentUser.photoURL}" alt="${currentUser.name}">`;
+    } else {
+        avatar.innerHTML = `<i class="fas fa-user"></i>`;
     }
 }
 
-function addChannelToUI(channel) {
-    const chatsList = document.getElementById('chats-list');
-    
-    const channelElement = document.createElement('div');
-    channelElement.className = 'chat-item';
-    channelElement.dataset.chatId = channel.id;
-    channelElement.dataset.chatType = 'channel';
-    
-    const icon = channel.type === 'voice' ? 'fa-volume-up' : 
-                 channel.type === 'private' ? 'fa-lock' : 'fa-hashtag';
-    
-    channelElement.innerHTML = `
-        <div class="chat-icon">
-            <i class="fas ${icon}"></i>
-        </div>
-        <div class="chat-details">
-            <div class="chat-name">${channel.name}</div>
-            <div class="chat-activity">
-                <span class="online-count">0 онлайн</span>
-                <span class="last-msg">${channel.topic || 'Нет описания'}</span>
-            </div>
-        </div>
-        <div class="chat-badge">
-            <i class="fas fa-bolt"></i>
-        </div>
-    `;
-    
-    chatsList.appendChild(channelElement);
-    
-    channelElement.addEventListener('click', () => {
-        selectChat(channel.id, 'channel', channel);
-    });
+// Включение чата
+function enableChat() {
+    document.getElementById('message-input').disabled = false;
+    document.getElementById('send-btn').disabled = false;
+    document.getElementById('join-call-btn').disabled = false;
+    document.getElementById('message-input').placeholder = 'Введите сообщение...';
+    document.getElementById('message-input').focus();
+
+    // Показываем основной интерфейс
+    document.querySelector('.container').style.display = 'flex';
 }
 
-// ==================== ЛИЧНЫЕ СООБЩЕНИЯ ====================
-async function openDM(userId, userData) {
-    try {
-        const dmId = [state.currentUser.uid, userId].sort().join('_');
-        const dmRef = ref(database, `dms/${dmId}`);
-        const snapshot = await get(dmRef);
-        
-        let dmData;
-        if (!snapshot.exists()) {
-            dmData = {
-                id: dmId,
-                participants: {
-                    [state.currentUser.uid]: true,
-                    [userId]: true
-                },
-                createdAt: Date.now(),
-                lastMessage: null
-            };
-            await set(dmRef, dmData);
-        } else {
-            dmData = snapshot.val();
+// Загрузка контактов
+function loadContacts() {
+    const usersRef = ref(database, 'users');
+    
+    onValue(usersRef, (snapshot) => {
+        const data = snapshot.val();
+        const chatList = document.querySelector('.chat-list');
+        let contactsHTML = '';
+
+        if (data) {
+            Object.entries(data).forEach(([userId, userData]) => {
+                if (userId === currentUser.uid) return;
+
+                contacts.push({
+                    id: userId,
+                    ...userData
+                });
+
+                const avatar = userData.photoURL || 
+                    `https://ui-avatars.com/api/?name=${encodeURIComponent(userData.name)}&background=10B981&color=fff`;
+
+                contactsHTML += `
+                    <div class="chat-item" data-chat="${userId}">
+                        <div class="chat-icon">
+                            <img src="${avatar}" alt="${userData.name}">
+                        </div>
+                        <div class="chat-info">
+                            <div class="chat-name">${userData.name}</div>
+                            <div class="chat-preview">${userData.online ? 'в сети' : 'не в сети'}</div>
+                        </div>
+                        <button class="btn-call-mini" data-chat="${userId}">
+                            <i class="fas fa-video"></i>
+                        </button>
+                    </div>
+                `;
+            });
         }
-        
-        // Сохраняем в состояние
-        state.dms.set(dmId, { ...dmData, user: userData });
-        
-        // Добавляем в UI
-        addDMToUI(dmId, userData);
-        
-        // Переключаемся на ЛС
-        selectChat(dmId, 'dm', { ...dmData, user: userData });
-        
-    } catch (error) {
-        console.error('Open DM error:', error);
-        showNotification('Ошибка открытия ЛС', 'error');
-    }
-}
 
-function addDMToUI(dmId, userData) {
-    const dmsList = document.getElementById('dms-list');
-    
-    // Проверяем, не добавлен ли уже
-    if (document.querySelector(`.dm-item[data-chat-id="${dmId}"]`)) {
-        return;
-    }
-    
-    const dmElement = document.createElement('div');
-    dmElement.className = 'dm-item';
-    dmElement.dataset.chatId = dmId;
-    dmElement.dataset.chatType = 'dm';
-    
-    const avatarUrl = userData.photoURL || 
-        `https://ui-avatars.com/api/?name=${encodeURIComponent(userData.username)}&background=10B981&color=fff&bold=true`;
-    
-    dmElement.innerHTML = `
-        <div class="avatar-wrapper">
-            <div class="avatar" style="background-image: url('${avatarUrl}')">
-                ${userData.photoURL ? '' : '<i class="fas fa-user"></i>'}
-            </div>
-            <div class="user-status ${userData.status || 'offline'}"></div>
-        </div>
-        <div class="chat-details">
-            <div class="chat-name">${userData.displayName}</div>
-            <div class="chat-activity">
-                <span class="status-text">${userData.statusText || 'Не в сети'}</span>
-            </div>
-        </div>
-    `;
-    
-    dmsList.appendChild(dmElement);
-    
-    // Обновляем счетчик
-    updateDMCounter();
-    
-    dmElement.addEventListener('click', () => {
-        selectChat(dmId, 'dm', { ...userData, id: dmId });
+        // Добавляем контакты после общего чата
+        const generalChat = chatList.querySelector('.chat-item').outerHTML;
+        chatList.innerHTML = generalChat + contactsHTML;
     });
 }
 
-// ==================== СООБЩЕНИЯ ====================
+// Выбор чата
+function selectChat(chatId) {
+    currentChat = chatId;
+
+    // Обновляем активный элемент
+    document.querySelectorAll('.chat-item').forEach(item => {
+        item.classList.remove('active');
+    });
+    document.querySelector(`.chat-item[data-chat="${chatId}"]`).classList.add('active');
+
+    if (chatId === 'general') {
+        document.getElementById('chat-title').textContent = 'Общий чат';
+        document.getElementById('chat-status').textContent = 'Групповой чат';
+        document.querySelector('.chat-title .avatar').innerHTML = '<i class="fas fa-users"></i>';
+    } else {
+        const contact = contacts.find(c => c.id === chatId);
+        if (contact) {
+            document.getElementById('chat-title').textContent = contact.name;
+            document.getElementById('chat-status').textContent = contact.online ? 'в сети' : 'не в сети';
+            const avatar = contact.photoURL || 
+                `https://ui-avatars.com/api/?name=${encodeURIComponent(contact.name)}&background=10B981&color=fff`;
+            document.querySelector('.chat-title .avatar').innerHTML = `<img src="${avatar}" alt="${contact.name}">`;
+        }
+    }
+
+    loadMessages();
+}
+
+// Загрузка сообщений
+function loadMessages() {
+    const messagesRef = ref(database, `chats/${currentChat}/messages`);
+    const messagesContainer = document.getElementById('messages-container');
+
+    onValue(messagesRef, (snapshot) => {
+        const data = snapshot.val();
+        messagesContainer.innerHTML = '';
+
+        if (!data) {
+            messagesContainer.innerHTML = `
+                <div class="welcome">
+                    <div class="welcome-icon">
+                        <i class="fas fa-comments"></i>
+                    </div>
+                    <h3>${currentChat === 'general' ? 'Общий чат' : 'Личные сообщения'}</h3>
+                    <p>Начните общение!</p>
+                </div>
+            `;
+            return;
+        }
+
+        // Сортируем сообщения по времени
+        const messages = Object.values(data).sort((a, b) => a.timestamp - b.timestamp);
+
+        messages.forEach(message => {
+            addMessageToUI(message);
+        });
+
+        scrollToBottom();
+    });
+}
+
+// Добавление сообщения в UI
+function addMessageToUI(message) {
+    const messagesContainer = document.getElementById('messages-container');
+    const welcome = messagesContainer.querySelector('.welcome');
+
+    if (welcome) {
+        welcome.remove();
+    }
+
+    const isSent = message.senderId === currentUser.uid;
+    const time = new Date(message.timestamp).toLocaleTimeString([], { 
+        hour: '2-digit', 
+        minute: '2-digit' 
+    });
+
+    const messageElement = document.createElement('div');
+    messageElement.className = `message ${isSent ? 'sent' : 'received'}`;
+    messageElement.innerHTML = `
+        <div class="message-content">${escapeHtml(message.text)}</div>
+        <div class="message-time">${time}</div>
+    `;
+
+    messagesContainer.appendChild(messageElement);
+    scrollToBottom();
+}
+
+// Отправка сообщения
 async function sendMessage() {
-    if (!state.currentUser) return;
-    
+    if (!currentUser) return;
+
     const input = document.getElementById('message-input');
     const text = input.value.trim();
-    
+
     if (!text) return;
-    
-    // Проверяем команды
-    if (text.startsWith('/')) {
-        handleCommand(text);
-        input.value = '';
-        return;
-    }
-    
-    // Очищаем индикатор набора
-    clearTypingIndicator();
-    
+
+    const messagesRef = ref(database, `chats/${currentChat}/messages`);
+    const newMessageRef = push(messagesRef);
+
     const messageData = {
-        id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        text: sanitizeText(text),
-        senderId: state.currentUser.uid,
-        senderName: state.currentUser.username,
-        senderTag: state.currentUser.discriminator,
-        timestamp: Date.now(),
-        edited: false,
-        reactions: {},
-        attachments: [],
-        mentions: extractMentions(text)
+        text: text,
+        senderId: currentUser.uid,
+        senderName: currentUser.name,
+        timestamp: Date.now()
     };
-    
+
     try {
-        let messagesRef;
-        if (state.currentChatType === 'dm') {
-            messagesRef = ref(database, `dms/${state.currentChat}/messages`);
-        } else {
-            messagesRef = ref(database, `chats/${state.currentChat}/messages`);
-        }
-        
-        const newMessageRef = push(messagesRef);
         await set(newMessageRef, messageData);
-        
-        // Воспроизводим звук отправки
-        playSound('message_sent');
-        
-        // Очищаем поле ввода
         input.value = '';
         input.focus();
-        
     } catch (error) {
-        console.error('Send message error:', error);
-        showNotification('Ошибка отправки', 'error');
+        console.error('Ошибка отправки:', error);
+        showNotification('Не удалось отправить сообщение', 'error');
     }
 }
 
-function handleTyping() {
-    if (!state.currentUser || !state.currentChat) return;
-    
-    const input = document.getElementById('message-input');
-    const typingIndicator = document.getElementById('typing-indicator');
-    
-    if (input.value.length > 0) {
-        typingIndicator.classList.add('active');
-        updateTypingStatus(true);
-    } else {
-        typingIndicator.classList.remove('active');
-        updateTypingStatus(false);
-    }
-}
+// Система присутствия
+function setupPresence() {
+    const userStatusRef = ref(database, `users/${currentUser.uid}/online`);
+    const userLastSeenRef = ref(database, `users/${currentUser.uid}/lastSeen`);
 
-function updateTypingStatus(isTyping) {
-    if (!state.currentUser || !state.currentChat) return;
-    
-    const typingRef = ref(database, 
-        state.currentChatType === 'dm' 
-            ? `dms/${state.currentChat}/typing/${state.currentUser.uid}`
-            : `channels/${state.currentChat}/typing/${state.currentUser.uid}`
-    );
-    
-    if (isTyping) {
-        set(typingRef, {
-            userId: state.currentUser.uid,
-            username: state.currentUser.username,
-            timestamp: Date.now()
-        });
-        
-        // Автоматически убираем статус через 3 секунды
-        setTimeout(() => {
-            updateTypingStatus(false);
-        }, CONFIG.TYPING_TIMEOUT);
-    } else {
-        set(typingRef, null);
-    }
-}
-
-// ==================== КОМАНДЫ ====================
-function setupCommands() {
-    window.commands = {
-        gif: async (query) => {
-            const gif = await searchGIF(query || 'hello');
-            if (gif) {
-                // Отправляем как сообщение
-                const messageInput = document.getElementById('message-input');
-                messageInput.value = gif;
-                sendMessage();
-            }
-        },
-        
-        me: (action) => {
-            if (!action) return;
-            const messageInput = document.getElementById('message-input');
-            messageInput.value = `*${state.currentUser.username} ${action}*`;
-            sendMessage();
-        },
-        
-        nick: async (newName) => {
-            if (!newName || newName.length < 3) {
-                showNotification('Имя должно быть от 3 символов', 'error');
-                return;
-            }
-            
-            try {
-                const userRef = ref(database, `users/${state.currentUser.uid}`);
-                const displayName = `${newName}#${state.currentUser.discriminator}`;
-                
-                await updateProfile(auth.currentUser, { displayName });
-                await set(ref(database, `users/${state.currentUser.uid}/username`), newName);
-                await set(ref(database, `users/${state.currentUser.uid}/displayName`), displayName);
-                
-                state.currentUser.username = newName;
-                state.currentUser.displayName = displayName;
-                updateUserProfile();
-                
-                showNotification(`Имя изменено на ${newName}`, 'success');
-                playSound('success');
-                
-            } catch (error) {
-                showNotification('Ошибка смены имени', 'error');
-            }
-        },
-        
-        clear: () => {
-            const messagesContainer = document.getElementById('messages-container');
-            messagesContainer.innerHTML = '';
-            showNotification('Сообщения очищены локально', 'info');
-        },
-        
-        game: (gameType) => {
-            const games = {
-                dice: '🎲 Вы бросили кубик: ' + (Math.floor(Math.random() * 6) + 1),
-                coin: '🪙 Монетка: ' + (Math.random() > 0.5 ? 'Орел' : 'Решка'),
-                rps: '✊✋✌️ Ваш ход в камень-ножницы-бумага!'
-            };
-            
-            const result = games[gameType] || 'Доступные игры: dice, coin, rps';
-            const messageInput = document.getElementById('message-input');
-            messageInput.value = result;
-            sendMessage();
-        },
-        
-        theme: (themeName) => {
-            switchTheme(themeName);
-        },
-        
-        help: () => {
-            const helpText = `
-Доступные команды:
-/gif [текст] - поиск гифки
-/me [действие] - действие от лица пользователя
-/nick [имя] - сменить имя
-/clear - очистить чат (локально)
-/game [тип] - мини-игры (dice, coin, rps)
-/theme [название] - сменить тему
-/help - эта справка
-            `;
-            showNotification(helpText, 'info');
+    // При отключении устанавливаем offline
+    const disconnectRef = ref(database, '.info/connected');
+    onValue(disconnectRef, (snapshot) => {
+        if (snapshot.val() === false) {
+            set(userStatusRef, false);
+            set(userLastSeenRef, Date.now());
+            return;
         }
-    };
+
+        set(userStatusRef, true);
+        
+        // Настраиваем onDisconnect
+        const onDisconnectRef = ref(database, `users/${currentUser.uid}/online`);
+        set(onDisconnectRef, false);
+        set(ref(database, `users/${currentUser.uid}/lastSeen`), Date.now());
+    });
 }
 
-function handleCommand(text) {
-    const [command, ...args] = text.slice(1).split(' ');
-    const cmdFunction = window.commands[command];
-    
-    if (cmdFunction) {
-        cmdFunction(args.join(' '));
-    } else {
-        showNotification(`Неизвестная команда: /${command}`, 'error');
+// Выход
+async function handleLogout() {
+    try {
+        if (currentUser) {
+            await set(ref(database, `users/${currentUser.uid}/online`), false);
+            await set(ref(database, `users/${currentUser.uid}/lastSeen`), Date.now());
+        }
+
+        if (activeCall) {
+            endCall();
+        }
+
+        await signOut(auth);
+
+        // Сбрасываем состояние
+        currentUser = null;
+        contacts = [];
+
+        // Сбрасываем UI
+        resetUI();
+        showLoginModal();
+
+        showNotification('Выход выполнен', 'success');
+    } catch (error) {
+        console.error('Ошибка выхода:', error);
+        showNotification('Ошибка при выходе', 'error');
     }
 }
 
-// ==================== ВИДЕОЗВОНКИ ====================
-async function startGroupCall() {
+function resetUI() {
+    document.getElementById('username').textContent = 'Гость';
+    document.getElementById('user-status').textContent = 'не в сети';
+    document.getElementById('user-status').classList.remove('online');
+    document.getElementById('user-status').classList.add('offline');
+    
+    const avatar = document.getElementById('user-avatar');
+    avatar.innerHTML = '<i class="fas fa-user"></i>';
+    
+    document.getElementById('chat-title').textContent = 'Общий чат';
+    document.getElementById('chat-status').textContent = 'войдите в систему';
+    
+    document.getElementById('messages-container').innerHTML = `
+        <div class="welcome">
+            <div class="welcome-icon">
+                <i class="fas fa-water"></i>
+            </div>
+            <h2>NeoCascade Messenger</h2>
+            <p>Быстрое и безопасное общение</p>
+            <p class="hint">Войдите в систему, чтобы начать общаться</p>
+        </div>
+    `;
+    
+    document.getElementById('message-input').disabled = true;
+    document.getElementById('send-btn').disabled = true;
+    document.getElementById('join-call-btn').disabled = true;
+    document.getElementById('message-input').placeholder = 'Войдите, чтобы отправлять сообщения';
+    document.getElementById('message-input').value = '';
+    
+    document.querySelector('.container').style.display = 'none';
+    document.querySelector('.chat-list').innerHTML = `
+        <div class="chat-item active" data-chat="general">
+            <div class="chat-icon">
+                <i class="fas fa-users"></i>
+            </div>
+            <div class="chat-info">
+                <div class="chat-name">Общий чат</div>
+                <div class="chat-preview">Присоединяйтесь к беседе</div>
+            </div>
+            <button class="btn-call-mini" data-chat="general">
+                <i class="fas fa-video"></i>
+            </button>
+        </div>
+    `;
+}
+
+// Видеозвонки
+async function startCall() {
     try {
-        // Запрашиваем разрешения
-        state.localStream = await navigator.mediaDevices.getUserMedia({
-            video: {
-                width: { ideal: 1280 },
-                height: { ideal: 720 },
-                frameRate: { ideal: 30 }
-            },
-            audio: {
-                echoCancellation: true,
-                noiseSuppression: true,
-                autoGainControl: true
-            }
+        const stream = await navigator.mediaDevices.getUserMedia({
+            video: true,
+            audio: true
         });
-        
-        // Показываем локальное видео
+
         const localVideo = document.getElementById('local-video');
-        localVideo.srcObject = state.localStream;
-        
-        // Создаем запись о звонке
-        const callRef = ref(database, `calls/general`);
-        await set(callRef, {
-            id: 'general',
+        localVideo.srcObject = stream;
+
+        // Создаем звонок в общем чате
+        await set(ref(database, `calls/general`), {
             active: true,
-            type: 'group',
-            startedBy: state.currentUser.uid,
+            startedBy: currentUser.uid,
             startedAt: Date.now(),
             participants: {
-                [state.currentUser.uid]: {
-                    joinedAt: Date.now(),
-                    video: true,
-                    audio: true
-                }
-            },
-            settings: {
-                maxParticipants: 12,
-                recording: false,
-                screenShare: false
+                [currentUser.uid]: true
             }
         });
-        
+
         // Показываем интерфейс звонка
-        showCallInterface();
-        
-        // Создаем Peer Connection для каждого участника
-        startListeningForParticipants();
-        
-        playSound('call_start');
-        showNotification('Групповой звонок начат!', 'success');
-        
+        document.getElementById('video-call-container').classList.add('active');
+        activeCall = true;
+
+        showNotification('Звонок начат', 'success');
     } catch (error) {
-        console.error('Start call error:', error);
-        showNotification('Ошибка начала звонка: ' + error.message, 'error');
+        console.error('Ошибка звонка:', error);
+        showNotification('Не удалось начать звонок', 'error');
     }
 }
 
 async function joinCall() {
-    if (state.callActive) return;
-    
+    if (activeCall) return;
+
     try {
-        state.localStream = await navigator.mediaDevices.getUserMedia({
+        const stream = await navigator.mediaDevices.getUserMedia({
             video: true,
             audio: true
         });
-        
+
         const localVideo = document.getElementById('local-video');
-        localVideo.srcObject = state.localStream;
-        
-        // Получаем информацию о звонке
-        const callRef = ref(database, `calls/general`);
-        const snapshot = await get(callRef);
-        
-        if (!snapshot.exists() || !snapshot.val().active) {
-            showNotification('Активный звонок не найден', 'warning');
-            state.localStream.getTracks().forEach(track => track.stop());
-            state.localStream = null;
-            return;
-        }
-        
-        const callData = snapshot.val();
-        
+        localVideo.srcObject = stream;
+
         // Добавляем себя к участникам
-        await set(ref(database, `calls/general/participants/${state.currentUser.uid}`), {
-            joinedAt: Date.now(),
-            video: true,
-            audio: true,
-            username: state.currentUser.username
-        });
-        
-        // Подключаемся к другим участникам
-        Object.keys(callData.participants || {}).forEach(userId => {
-            if (userId !== state.currentUser.uid) {
-                connectToUser(userId);
-            }
-        });
-        
-        showCallInterface();
-        startListeningForParticipants();
-        
-        playSound('call_join');
+        await set(ref(database, `calls/general/participants/${currentUser.uid}`), true);
+
+        document.getElementById('video-call-container').classList.add('active');
+        activeCall = true;
+
         showNotification('Вы присоединились к звонку', 'success');
-        
     } catch (error) {
-        console.error('Join call error:', error);
-        showNotification('Ошибка подключения: ' + error.message, 'error');
+        console.error('Ошибка подключения:', error);
+        showNotification('Не удалось присоединиться', 'error');
     }
 }
 
-async function connectToUser(userId) {
-    try {
-        const peerConnection = new RTCPeerConnection({
-            iceServers: CONFIG.ICE_SERVERS
-        });
-        
-        // Добавляем локальные треки
-        if (state.localStream) {
-            state.localStream.getTracks().forEach(track => {
-                peerConnection.addTrack(track, state.localStream);
-            });
+function endCall() {
+    // Останавливаем все медиапотоки
+    const localVideo = document.getElementById('local-video');
+    if (localVideo.srcObject) {
+        localVideo.srcObject.getTracks().forEach(track => track.stop());
+    }
+
+    // Убираем звонок из базы
+    set(ref(database, `calls/general`), null);
+
+    // Скрываем интерфейс звонка
+    document.getElementById('video-call-container').classList.remove('active');
+    activeCall = false;
+
+    showNotification('Звонок завершен', 'info');
+}
+
+function toggleVideo() {
+    const localVideo = document.getElementById('local-video');
+    if (localVideo.srcObject) {
+        const videoTrack = localVideo.srcObject.getVideoTracks()[0];
+        if (videoTrack) {
+            videoTrack.enabled = !videoTrack.enabled;
+            const btn = document.getElementById('toggle-video');
+            btn.innerHTML = videoTrack.enabled ? 
+                '<i class="fas fa-video"></i>' : 
+                '<i class="fas fa-video-slash"></i>';
         }
-        
-        // Обработка удаленного потока
-        peerConnection.ontrack = (event) => {
-            addRemoteVideo(userId, event.streams[0]);
-        };
-        
-        // ICE кандидаты
-        peerConnection.onicecandidate = (event) => {
-            if (event.candidate) {
-                // Отправляем кандидата через Firebase
-                const candidateRef = ref(database, `candidates/${state.currentUser.uid}_${userId}`);
-                push(candidateRef, {
-                    candidate: event.candidate,
-                    from: state.currentUser.uid,
-                    to: userId,
-                    timestamp: Date.now()
-                });
-            }
-        };
-        
-        // Создаем оффер
-        const offer = await peerConnection.createOffer();
-        await peerConnection.setLocalDescription(offer);
-        
-        // Сохраняем оффер
-        const offerRef = ref(database, `offers/${state.currentUser.uid}_${userId}`);
-        await set(offerRef, {
-            sdp: offer.sdp,
-            type: 'offer',
-            from: state.currentUser.uid,
-            to: userId,
-            timestamp: Date.now()
-        });
-        
-        // Сохраняем соединение
-        state.peerConnections.set(userId, peerConnection);
-        
-        // Слушаем ответ
-        listenForAnswer(userId, peerConnection);
-        listenForCandidates(userId, peerConnection);
-        
-    } catch (error) {
-        console.error('Connect error:', error);
     }
 }
 
-function addRemoteVideo(userId, stream) {
-    const remoteVideos = document.getElementById('remote-videos');
-    
-    // Проверяем, не добавлено ли уже видео этого пользователя
-    if (document.querySelector(`.video-wrapper[data-user-id="${userId}"]`)) {
-        return;
-    }
-    
-    const videoWrapper = document.createElement('div');
-    videoWrapper.className = 'video-wrapper remote glass';
-    videoWrapper.dataset.userId = userId;
-    
-    const video = document.createElement('video');
-    video.autoplay = true;
-    video.playsInline = true;
-    video.srcObject = stream;
-    
-    const label = document.createElement('div');
-    label.className = 'video-label glass';
-    label.innerHTML = `
-        <span class="user-tag">Пользователь#${userId.slice(0, 4)}</span>
-        <span class="status-dot online"></span>
-    `;
-    
-    videoWrapper.appendChild(video);
-    videoWrapper.appendChild(label);
-    remoteVideos.appendChild(videoWrapper);
-    
-    // Обновляем счетчик участников
-    updateParticipantsCount();
-}
-
-// ==================== ГОЛОСОВЫЕ СООБЩЕНИЯ ====================
-async function toggleVoiceRecording() {
-    if (state.voiceRecording) {
-        stopVoiceRecording();
-    } else {
-        await startVoiceRecording();
+function toggleAudio() {
+    const localVideo = document.getElementById('local-video');
+    if (localVideo.srcObject) {
+        const audioTrack = localVideo.srcObject.getAudioTracks()[0];
+        if (audioTrack) {
+            audioTrack.enabled = !audioTrack.enabled;
+            const btn = document.getElementById('toggle-audio');
+            btn.innerHTML = audioTrack.enabled ? 
+                '<i class="fas fa-microphone"></i>' : 
+                '<i class="fas fa-microphone-slash"></i>';
+        }
     }
 }
 
-async function startVoiceRecording() {
-    try {
-        const stream = await navigator.mediaDevices.getUserMedia({ 
-            audio: {
-                echoCancellation: true,
-                noiseSuppression: true,
-                sampleRate: 44100
-            } 
-        });
-        
-        state.mediaRecorder = new MediaRecorder(stream, {
-            mimeType: 'audio/webm;codecs=opus'
-        });
-        
-        state.audioChunks = [];
-        
-        state.mediaRecorder.ondataavailable = (event) => {
-            if (event.data.size > 0) {
-                state.audioChunks.push(event.data);
-            }
-        };
-        
-        state.mediaRecorder.onstop = async () => {
-            const audioBlob = new Blob(state.audioChunks, { type: 'audio/webm' });
-            await sendVoiceMessage(audioBlob);
-            
-            // Останавливаем все треки
-            stream.getTracks().forEach(track => track.stop());
-        };
-        
-        state.mediaRecorder.start();
-        state.voiceRecording = true;
-        
-        // Показываем интерфейс записи
-        document.getElementById('voice-recorder').classList.add('active');
-        startRecordingTimer();
-        
-        playSound('record_start');
-        
-    } catch (error) {
-        console.error('Recording error:', error);
-        showNotification('Ошибка доступа к микрофону', 'error');
-    }
+// Вспомогательные функции
+function showLoginModal() {
+    document.getElementById('login-modal').style.display = 'flex';
 }
 
-function stopVoiceRecording() {
-    if (state.mediaRecorder && state.voiceRecording) {
-        state.mediaRecorder.stop();
-        state.voiceRecording = false;
-        
-        document.getElementById('voice-recorder').classList.remove('active');
-        stopRecordingTimer();
-        
-        playSound('record_stop');
-    }
+function hideLoginModal() {
+    document.getElementById('login-modal').style.display = 'none';
 }
 
-async function sendVoiceMessage(audioBlob) {
-    try {
-        // Конвертируем в base64
-        const reader = new FileReader();
-        reader.readAsDataURL(audioBlob);
-        
-        reader.onloadend = async () => {
-            const base64Audio = reader.result;
-            const duration = await getAudioDuration(audioBlob);
-            
-            const messageData = {
-                id: `voice_${Date.now()}`,
-                type: 'voice',
-                senderId: state.currentUser.uid,
-                senderName: state.currentUser.username,
-                audioData: base64Audio,
-                duration: duration,
-                timestamp: Date.now()
-            };
-            
-            let messagesRef;
-            if (state.currentChatType === 'dm') {
-                messagesRef = ref(database, `dms/${state.currentChat}/messages`);
-            } else {
-                messagesRef = ref(database, `chats/${state.currentChat}/messages`);
-            }
-            
-            const newMessageRef = push(messagesRef);
-            await set(newMessageRef, messageData);
-            
-            showNotification('Голосовое сообщение отправлено', 'success');
-            playSound('message_sent');
-        };
-        
-    } catch (error) {
-        console.error('Send voice error:', error);
-        showNotification('Ошибка отправки голосового', 'error');
-    }
-}
-
-// ==================== ЭМОДЗИ ====================
-function toggleEmojiPicker() {
-    const picker = document.getElementById('emoji-picker');
-    
-    if (state.emojiPickerOpen) {
-        hideEmojiPicker();
-    } else {
-        showEmojiPicker();
-    }
-}
-
-function showEmojiPicker() {
-    const picker = document.getElementById('emoji-picker');
-    picker.classList.add('active');
-    state.emojiPickerOpen = true;
-    
-    // Загружаем эмодзи
-    if (!picker.querySelector('.emoji-grid').children.length) {
-        loadEmojis();
-    }
-}
-
-function hideEmojiPicker() {
-    const picker = document.getElementById('emoji-picker');
-    picker.classList.remove('active');
-    state.emojiPickerOpen = false;
-}
-
-function loadEmojis() {
-    const emojiGrid = document.querySelector('.emoji-grid');
-    const emojis = ['😀', '😂', '🥰', '😎', '🤔', '😱', '🎉', '🔥', '💯', '✨', '🎮', '🚀', '❤️', '👍', '👋', '🎶'];
-    
-    emojiGrid.innerHTML = '';
-    
-    emojis.forEach(emoji => {
-        const emojiBtn = document.createElement('button');
-        emojiBtn.className = 'emoji';
-        emojiBtn.textContent = emoji;
-        emojiBtn.addEventListener('click', () => {
-            insertEmoji(emoji);
-            hideEmojiPicker();
-        });
-        emojiGrid.appendChild(emojiBtn);
-    });
-}
-
-function insertEmoji(emoji) {
-    const input = document.getElementById('message-input');
-    const cursorPos = input.selectionStart;
-    const text = input.value;
-    
-    input.value = text.substring(0, cursorPos) + emoji + text.substring(cursorPos);
-    input.focus();
-    input.setSelectionRange(cursorPos + emoji.length, cursorPos + emoji.length);
-}
-
-// ==================== ТЕМЫ ====================
-function toggleTheme() {
-    const themes = ['dark', 'light', 'neon', 'matrix'];
-    const currentIndex = themes.indexOf(state.theme);
-    const nextTheme = themes[(currentIndex + 1) % themes.length];
-    
-    switchTheme(nextTheme);
-}
-
-function switchTheme(themeName) {
-    const body = document.body;
-    
-    // Удаляем предыдущие классы тем
-    themes.forEach(theme => {
-        body.classList.remove(`theme-${theme}`);
-    });
-    
-    // Добавляем новую тему
-    body.classList.add(`theme-${themeName}`);
-    state.theme = themeName;
-    
-    // Сохраняем в localStorage
-    localStorage.setItem('neocascade-theme', themeName);
-    
-    // Обновляем тему в Firebase если пользователь авторизован
-    if (state.currentUser) {
-        set(ref(database, `users/${state.currentUser.uid}/theme`), themeName);
-    }
-    
-    showNotification(`Тема изменена: ${themeName}`, 'info');
-    playSound('theme_switch');
-}
-
-// ==================== УВЕДОМЛЕНИЯ ====================
 function showNotification(message, type = 'info') {
-    const container = document.getElementById('notifications-container');
-    
+    // Удаляем предыдущие уведомления
+    const oldNotification = document.querySelector('.notification');
+    if (oldNotification) {
+        oldNotification.remove();
+    }
+
     const notification = document.createElement('div');
-    notification.className = `notification notification-${type}`;
-    
-    const icons = {
-        info: 'fa-info-circle',
-        success: 'fa-check-circle',
-        warning: 'fa-exclamation-triangle',
-        error: 'fa-times-circle'
-    };
-    
-    notification.innerHTML = `
-        <div class="notification-icon">
-            <i class="fas ${icons[type] || icons.info}"></i>
-        </div>
-        <div class="notification-content">
-            <div class="notification-title">${type.toUpperCase()}</div>
-            <div class="notification-message">${message}</div>
-        </div>
-        <button class="notification-close">
-            <i class="fas fa-times"></i>
-        </button>
-    `;
-    
-    container.appendChild(notification);
-    
-    // Автоудаление через 5 секунд
+    notification.className = `notification`;
+    notification.style.background = type === 'error' ? 'var(--danger)' : 
+                                  type === 'success' ? 'var(--secondary)' : 'var(--primary)';
+    notification.textContent = message;
+
+    document.body.appendChild(notification);
+
+    // Автоудаление через 3 секунды
     setTimeout(() => {
-        notification.style.animation = 'slideInRight 0.3s ease-out reverse';
-        setTimeout(() => {
-            notification.remove();
-        }, 300);
-    }, 5000);
-    
-    // Звук уведомления
-    if (state.notifications) {
-        playSound('notification');
-        
-        // Если разрешены браузерные уведомления
-        if (Notification.permission === 'granted') {
-            new Notification('NeoCascade', {
-                body: message,
-                icon: '/icon.png'
-            });
-        }
-    }
-    
-    // Закрытие по клику
-    notification.querySelector('.notification-close').addEventListener('click', () => {
-        notification.remove();
-    });
+        notification.style.animation = 'slideInRight 0.3s ease reverse';
+        setTimeout(() => notification.remove(), 300);
+    }, 3000);
 }
 
-function toggleNotifications() {
-    state.notifications = !state.notifications;
-    const btn = document.getElementById('notifications-toggle');
-    
-    if (state.notifications) {
-        btn.innerHTML = '<i class="fas fa-bell"></i>';
-        showNotification('Уведомления включены', 'success');
-    } else {
-        btn.innerHTML = '<i class="fas fa-bell-slash"></i>';
-        showNotification('Уведомления выключены', 'warning');
-    }
-    
-    // Сохраняем настройку
-    localStorage.setItem('neocascade-notifications', state.notifications);
+function scrollToBottom() {
+    const container = document.getElementById('messages-container');
+    container.scrollTop = container.scrollHeight;
 }
 
-// ==================== ЗВУКИ ====================
-function initSoundEffects() {
-    // Создаем аудио элементы для звуков
-    const sounds = {
-        message_sent: 'https://assets.mixkit.co/sfx/preview/mixkit-unlock-game-notification-253.mp3',
-        message_received: 'https://assets.mixkit.co/sfx/preview/mixkit-correct-answer-tone-2870.mp3',
-        notification: 'https://assets.mixkit.co/sfx/preview/mixkit-bubble-notification-alert-2357.mp3',
-        call_start: 'https://assets.mixkit.co/sfx/preview/mixkit-retro-game-emergency-alarm-1000.mp3',
-        call_join: 'https://assets.mixkit.co/sfx/preview/mixkit-unlock-game-notification-253.mp3',
-        call_end: 'https://assets.mixkit.co/sfx/preview/mixkit-game-show-wrong-answer-buzz-950.mp3',
-        login: 'https://assets.mixkit.co/sfx/preview/mixkit-correct-answer-tone-2870.mp3',
-        logout: 'https://assets.mixkit.co/sfx/preview/mixkit-game-show-wrong-answer-buzz-950.mp3',
-        success: 'https://assets.mixkit.co/sfx/preview/mixkit-winning-chimes-2015.mp3',
-        error: 'https://assets.mixkit.co/sfx/preview/mixkit-wrong-answer-fail-notification-946.mp3',
-        record_start: 'https://assets.mixkit.co/sfx/preview/mixkit-camera-shutter-click-1133.mp3',
-        record_stop: 'https://assets.mixkit.co/sfx/preview/mixkit-select-click-1109.mp3',
-        theme_switch: 'https://assets.mixkit.co/sfx/preview/mixkit-plastic-bubble-click-1124.mp3'
-    };
-    
-    window.sounds = {};
-    
-    Object.entries(sounds).forEach(([name, url]) => {
-        const audio = new Audio(url);
-        audio.volume = 0.3;
-        window.sounds[name] = audio;
-    });
-}
-
-function playSound(soundName) {
-    if (window.sounds && window.sounds[soundName]) {
-        const sound = window.sounds[soundName].cloneNode();
-        sound.volume = 0.3;
-        sound.play().catch(e => console.log('Sound play error:', e));
-    }
-}
-
-// ==================== УТИЛИТЫ ====================
-function sanitizeText(text) {
+function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
 }
 
-function extractMentions(text) {
-    const mentionRegex = /@(\w+)#(\d{4})/g;
-    const mentions = [];
-    let match;
-    
-    while ((match = mentionRegex.exec(text)) !== null) {
-        mentions.push({
-            username: match[1],
-            discriminator: match[2]
-        });
-    }
-    
-    return mentions;
-}
-
-function formatTime(timestamp) {
-    const date = new Date(timestamp);
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-}
-
-function formatDate(timestamp) {
-    const date = new Date(timestamp);
-    return date.toLocaleDateString([], { 
-        year: 'numeric', 
-        month: 'short', 
-        day: 'numeric' 
-    });
-}
-
-async function getAudioDuration(blob) {
-    return new Promise((resolve) => {
-        const audio = new Audio();
-        audio.src = URL.createObjectURL(blob);
-        
-        audio.onloadedmetadata = () => {
-            resolve(Math.round(audio.duration));
-            URL.revokeObjectURL(audio.src);
-        };
-        
-        audio.onerror = () => {
-            resolve(0);
-        };
-    });
-}
-
-// ==================== PWA И ОФФЛАЙН ====================
-function setupServiceWorker() {
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('sw.js')
-            .then(reg => console.log('SW registered:', reg))
-            .catch(err => console.log('SW registration failed:', err));
+function getAuthErrorMessage(error) {
+    switch (error.code) {
+        case 'auth/invalid-email':
+            return 'Неверный формат email';
+        case 'auth/user-disabled':
+            return 'Аккаунт отключен';
+        case 'auth/user-not-found':
+            return 'Пользователь не найден';
+        case 'auth/wrong-password':
+            return 'Неверный пароль';
+        case 'auth/email-already-in-use':
+            return 'Email уже используется';
+        case 'auth/weak-password':
+            return 'Слишком слабый пароль';
+        case 'auth/popup-closed-by-user':
+            return 'Окно авторизации закрыто';
+        case 'auth/popup-blocked':
+            return 'Браузер заблокировал окно авторизации';
+        default:
+            return 'Ошибка авторизации';
     }
 }
 
-// ==================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ====================
-function updateUserProfile() {
-    if (!state.currentUser) return;
-    
-    document.getElementById('username').textContent = state.currentUser.username;
-    document.getElementById('user-tag').textContent = `#${state.currentUser.discriminator}`;
-    
-    const avatar = document.getElementById('user-avatar');
-    if (state.currentUser.photoURL) {
-        avatar.style.backgroundImage = `url('${state.currentUser.photoURL}')`;
-        avatar.innerHTML = '';
-    } else {
-        avatar.style.backgroundImage = '';
-        avatar.innerHTML = '<i class="fas fa-user"></i>';
-    }
-}
-
-function clearTypingIndicator() {
-    const indicator = document.getElementById('typing-indicator');
-    indicator.classList.remove('active');
-}
-
-function refreshData() {
-    if (state.currentUser) {
-        loadContacts();
-        loadChannels();
-        loadDMs();
-    }
-}
-
-// Добавьте эти CSS темы в конец style.css:
-const themeStyles = `
-.theme-light {
-    --bg-deep: #f0f2f5;
-    --bg-surface: rgba(255, 255, 255, 0.9);
-    --bg-card: rgba(255, 255, 255, 0.7);
-    --glass-bg: rgba(255, 255, 255, 0.8);
-    --text-primary: #1a1a1a;
-    --text-secondary: #666;
-    --text-muted: #999;
-}
-
-.theme-neon {
-    --primary: #ff00ff;
-    --secondary: #00ffff;
-    --accent: #ffff00;
-    --bg-deep: #000;
-    --glass-border: rgba(255, 0, 255, 0.3);
-    --neon-glow: 0 0 10px currentColor, 0 0 20px currentColor, 0 0 40px currentColor;
-}
-
-.theme-matrix {
-    --primary: #00ff00;
-    --secondary: #009900;
-    --bg-deep: #000;
-    --text-primary: #00ff00;
-    --glass-bg: rgba(0, 255, 0, 0.1);
-    --glass-border: rgba(0, 255, 0, 0.3);
-}
-`;
-
-// Добавьте эти стили в style.css
-const styleEl = document.createElement('style');
-styleEl.textContent = themeStyles;
-document.head.appendChild(styleEl);
-
-// Экспортируем состояние для отладки
-window.appState = state;
-console.log('NeoCascade Messenger v2.0 загружен!');
-
-// Инициализируем дополнительные модули при необходимости
-setTimeout(() => {
-    if (state.currentUser) {
-        showNotification('Добро пожаловать в NeoCascade Quantum!', 'success');
-        playSound('login');
-    }
-}, 1000);
+// Экспорт для отладки
+window.app = {
+    currentUser,
+    currentChat,
+    contacts,
+    activeCall
+};
