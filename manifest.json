@@ -1,0 +1,57 @@
+{
+    "name": "NeoCascade Messenger",
+    "short_name": "NeoCascade",
+    "description": "Квантовый мессенджер нового поколения",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#0a0a1a",
+    "theme_color": "#00f3ff",
+    "orientation": "portrait-primary",
+    "icons": [
+        {
+            "src": "https://img.icons8.com/fluency/96/000000/chat.png",
+            "sizes": "96x96",
+            "type": "image/png"
+        },
+        {
+            "src": "https://img.icons8.com/fluency/144/000000/chat.png",
+            "sizes": "144x144",
+            "type": "image/png"
+        },
+        {
+            "src": "https://img.icons8.com/fluency/192/000000/chat.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "https://img.icons8.com/fluency/512/000000/chat.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        }
+    ],
+    "screenshots": [
+        {
+            "src": "https://via.placeholder.com/1280x720/0a0a1a/00f3ff?text=NeoCascade+Messenger",
+            "sizes": "1280x720",
+            "type": "image/png",
+            "form_factor": "wide"
+        }
+    ],
+    "categories": ["social", "communication", "entertainment"],
+    "shortcuts": [
+        {
+            "name": "Общий чат",
+            "short_name": "Чат",
+            "description": "Перейти в общий чат",
+            "url": "/?chat=general"
+        },
+        {
+            "name": "Начать звонок",
+            "short_name": "Звонок",
+            "description": "Начать видеозвонок",
+            "url": "/?action=call"
+        }
+    ],
+    "related_applications": [],
+    "prefer_related_applications": false
+}
