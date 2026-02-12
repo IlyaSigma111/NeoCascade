@@ -1,5 +1,19 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getDatabase, ref, push, onValue, set, get, child } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+import { 
+    getDatabase, 
+    ref, 
+    push, 
+    onValue, 
+    set, 
+    get, 
+    child, 
+    update, 
+    remove,
+    query,
+    orderByChild,
+    limitToLast,
+    onChildAdded
+} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 import { 
     getAuth, 
     createUserWithEmailAndPassword,
@@ -8,10 +22,18 @@ import {
     GoogleAuthProvider,
     onAuthStateChanged,
     signOut,
-    updateProfile
+    updateProfile,
+    sendPasswordResetEmail
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { 
+    getStorage, 
+    ref as storageRef, 
+    uploadBytes, 
+    getDownloadURL,
+    deleteObject
+} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
 
-// Конфигурация Firebase
+// Конфигурация Firebase - ТВОЯ
 const firebaseConfig = {
     apiKey: "AIzaSyDxGOGD6Oooo1CILrmrTpzy5Sq_MPuGiKM",
     authDomain: "messenger-4a3ab.firebaseapp.com",
@@ -22,27 +44,37 @@ const firebaseConfig = {
     appId: "1:684785124123:web:15efc74d7bb49259b789be"
 };
 
-// Инициализация Firebase
+// Инициализация
 const app = initializeApp(firebaseConfig);
-
-// Инициализация сервисов
 const database = getDatabase(app);
 const auth = getAuth(app);
+const storage = getStorage(app);
+
+// Google провайдер
 const googleProvider = new GoogleAuthProvider();
-
-// Настраиваем Google провайдер
-googleProvider.addScope('profile');
 googleProvider.addScope('email');
+googleProvider.addScope('profile');
+googleProvider.setCustomParameters({
+    'prompt': 'select_account'
+});
 
-// Экспорт
+// ЭКСПОРТ ВСЕГО
 export { 
+    app,
     database, 
+    storage,
     ref, 
     push, 
     onValue, 
     set, 
     get, 
-    child, 
+    child,
+    update,
+    remove,
+    query,
+    orderByChild,
+    limitToLast,
+    onChildAdded,
     auth, 
     createUserWithEmailAndPassword,
     signInWithEmailAndPassword,
@@ -50,5 +82,10 @@ export {
     googleProvider,
     onAuthStateChanged, 
     signOut,
-    updateProfile
+    updateProfile,
+    sendPasswordResetEmail,
+    storageRef,
+    uploadBytes,
+    getDownloadURL,
+    deleteObject
 };
