@@ -16,9 +16,10 @@ const db = firebase.database();
 const storage = firebase.storage();
 const googleProvider = new firebase.auth.GoogleAuthProvider();
 
-// АДМИН
+// ========== АДМИН ДАННЫЕ - ИСПРАВЛЕНО ==========
 const ADMIN_EMAIL = 'admin@ilyasigma.com';
 const ADMIN_PASSWORD = 'JojoTop1';
+const ADMIN_NAME = 'ИльяСигма111';
 
 // ========== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ==========
 let currentUser = null;
@@ -53,21 +54,77 @@ const elements = {
     currentChatAvatar: document.getElementById('current-chat-avatar')
 };
 
+// ========== ЗАПРОС РАЗРЕШЕНИЙ ==========
+async function requestPermissions() {
+    // Камера и микрофон
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+            video: true, 
+            audio: true 
+        });
+        stream.getTracks().forEach(track => track.stop());
+        console.log('✅ Камера и микрофон разрешены');
+    } catch (error) {
+        console.log('❌ Нет доступа к камере/микрофону:', error);
+    }
+    
+    // Уведомления
+    if ('Notification' in window) {
+        if (Notification.permission === 'default') {
+            const permission = await Notification.requestPermission();
+            console.log('✅ Уведомления:', permission);
+        }
+    }
+    
+    // Service Worker для уведомлений
+    if ('serviceWorker' in navigator) {
+        try {
+            const registration = await navigator.serviceWorker.register('/sw.js');
+            console.log('✅ Service Worker зарегистрирован');
+        } catch (error) {
+            console.log('❌ Service Worker ошибка:', error);
+        }
+    }
+}
+
+// ========== ПОКАЗ УВЕДОМЛЕНИЯ ==========
+function showBrowserNotification(title, body) {
+    if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification(title, {
+            body: body,
+            icon: 'https://img.icons8.com/fluency/96/000000/chat.png',
+            badge: 'https://img.icons8.com/fluency/96/000000/chat.png'
+        });
+    }
+}
+
 // ========== ИНИЦИАЛИЗАЦИЯ ==========
 document.addEventListener('DOMContentLoaded', () => {
     console.log('NeoCascade загружен');
     
+    // Запрашиваем разрешения
+    requestPermissions();
+    
+    // Слушаем авторизацию
     auth.onAuthStateChanged(handleAuthState);
+    
+    // Назначаем обработчики
     setupEventListeners();
     setupPresence();
 });
 
 // ========== ОБРАБОТЧИКИ ==========
 function setupEventListeners() {
-    // Вход
+    // Вход по email
     document.getElementById('email-login-btn')?.addEventListener('click', handleEmailLogin);
+    
+    // Google вход
     document.getElementById('google-login-btn')?.addEventListener('click', handleGoogleLogin);
+    
+    // Регистрация
     document.getElementById('email-register-btn')?.addEventListener('click', handleEmailRegister);
+    
+    // Админ вход - ИСПРАВЛЕНО
     document.getElementById('admin-login-btn')?.addEventListener('click', handleAdminLogin);
     
     // Переключение форм
@@ -83,13 +140,13 @@ function setupEventListeners() {
         document.getElementById('login-form').style.display = 'block';
     });
     
-    // Сообщения
+    // Отправка сообщений
     elements.sendBtn?.addEventListener('click', sendMessage);
     elements.messageInput?.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') sendMessage();
     });
     
-    // Голосовые
+    // Голосовые сообщения
     elements.voiceBtn?.addEventListener('mousedown', startVoiceRecording);
     elements.voiceBtn?.addEventListener('mouseup', stopVoiceRecording);
     elements.voiceBtn?.addEventListener('mouseleave', stopVoiceRecording);
@@ -109,10 +166,12 @@ function setupEventListeners() {
     // Выбор чата
     elements.chatList?.addEventListener('click', (e) => {
         const chatItem = e.target.closest('.chat-item');
-        if (chatItem?.dataset.chat) selectChat(chatItem.dataset.chat);
+        if (chatItem?.dataset.chat) {
+            selectChat(chatItem.dataset.chat);
+        }
     });
     
-    // Поиск
+    // Поиск чатов
     elements.chatSearch?.addEventListener('input', filterChats);
     
     // Мобильное меню
@@ -187,13 +246,16 @@ async function handleEmailRegister() {
         await result.user.updateProfile({ displayName: name });
         
         await db.ref(`users/${result.user.uid}`).set({
-            name, email,
+            name: name,
+            email: email,
             online: true,
             lastSeen: Date.now(),
-            photoURL: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=00f3ff&color=fff`
+            photoURL: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=3b82f6&color=fff`
         });
         
         showNotification('Регистрация успешна!', 'success');
+        showBrowserNotification('Добро пожаловать!', `Привет, ${name}!`);
+        
         document.getElementById('register-form').style.display = 'none';
         document.getElementById('login-form').style.display = 'block';
         
@@ -208,7 +270,7 @@ async function handleEmailRegister() {
     }
 }
 
-// ========== АДМИН ВХОД ==========
+// ========== АДМИН ВХОД - ИСПРАВЛЕНО ==========
 async function handleAdminLogin() {
     const btn = document.getElementById('admin-login-btn');
     const original = btn.innerHTML;
@@ -217,41 +279,79 @@ async function handleAdminLogin() {
         btn.disabled = true;
         btn.innerHTML = '<div class="loading"></div>';
         
+        console.log('Попытка входа как админ...');
+        
+        // Сначала пробуем войти
         try {
-            await auth.signInWithEmailAndPassword(ADMIN_EMAIL, ADMIN_PASSWORD);
-        } catch (error) {
-            if (error.code === 'auth/user-not-found') {
+            const result = await auth.signInWithEmailAndPassword(ADMIN_EMAIL, ADMIN_PASSWORD);
+            console.log('Админ вход успешен');
+            
+            // Обновляем имя если нужно
+            if (result.user.displayName !== ADMIN_NAME) {
+                await result.user.updateProfile({ displayName: ADMIN_NAME });
+            }
+            
+            showNotification('Добро пожаловать, Администратор!', 'success');
+            showBrowserNotification('👑 Админ', 'Вы вошли как ИльяСигма111');
+            
+        } catch (loginError) {
+            // Если пользователь не найден - создаем
+            if (loginError.code === 'auth/user-not-found') {
+                console.log('Админ не найден, создаем...');
+                
                 const result = await auth.createUserWithEmailAndPassword(ADMIN_EMAIL, ADMIN_PASSWORD);
-                await result.user.updateProfile({ displayName: 'ИльяСигма111' });
-            } else throw error;
+                await result.user.updateProfile({ displayName: ADMIN_NAME });
+                
+                // Сохраняем в базу
+                await db.ref(`users/${result.user.uid}`).set({
+                    name: ADMIN_NAME,
+                    email: ADMIN_EMAIL,
+                    online: true,
+                    lastSeen: Date.now(),
+                    photoURL: `https://ui-avatars.com/api/?name=${encodeURIComponent(ADMIN_NAME)}&background=10b981&color=fff`,
+                    isAdmin: true,
+                    createdAt: Date.now()
+                });
+                
+                console.log('Админ создан');
+                showNotification('Администратор создан!', 'success');
+                showBrowserNotification('👑 Админ создан', 'Добро пожаловать!');
+                
+            } else {
+                throw loginError;
+            }
         }
         
-        showNotification('Добро пожаловать, Администратор!', 'success');
-        
     } catch (error) {
-        showNotification('Ошибка входа', 'error');
+        console.error('Админ ошибка:', error);
+        showNotification('Ошибка входа администратора', 'error');
         btn.disabled = false;
         btn.innerHTML = original;
     }
 }
 
 // ========== СОСТОЯНИЕ АВТОРИЗАЦИИ ==========
-function handleAuthState(user) {
+async function handleAuthState(user) {
     if (user) {
         currentUser = user;
-        db.ref(`users/${user.uid}`).update({
+        
+        // Обновляем статус в БД
+        await db.ref(`users/${user.uid}`).update({
             name: user.displayName || user.email.split('@')[0],
             email: user.email,
             online: true,
             lastSeen: Date.now(),
-            photoURL: user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.displayName || user.email)}&background=00f3ff&color=fff`
+            photoURL: user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.displayName || user.email)}&background=3b82f6&color=fff`
         });
         
+        // Обновляем UI
         updateUI();
         hideLoginModal();
         loadMessages();
         loadContacts();
+        
         showNotification(`Привет, ${user.displayName || 'друг'}!`, 'success');
+        
     } else {
         currentUser = null;
         showLoginModal();
@@ -268,7 +368,6 @@ function updateUI() {
     
     if (currentUser.photoURL) {
         elements.userAvatar.innerHTML = `<img src="${currentUser.photoURL}" alt="avatar">`;
-        elements.currentChatAvatar.innerHTML = `<img src="${currentUser.photoURL}" alt="avatar">`;
     }
     
     elements.messageInput.disabled = false;
@@ -291,10 +390,13 @@ function hideLoginModal() {
 function setupPresence() {
     if (!currentUser) return;
     
-    db.ref('.info/connected').on('value', (snap) => {
-        if (snap.val() === true && currentUser) {
-            db.ref(`users/${currentUser.uid}/online`).set(true);
-            db.ref(`users/${currentUser.uid}/online`).onDisconnect().set(false);
+    const userStatusRef = db.ref(`users/${currentUser.uid}/online`);
+    const connectedRef = db.ref('.info/connected');
+    
+    connectedRef.on('value', (snap) => {
+        if (snap.val() === true) {
+            userStatusRef.set(true);
+            userStatusRef.onDisconnect().set(false);
             db.ref(`users/${currentUser.uid}/lastSeen`).onDisconnect().set(Date.now());
         }
     });
@@ -317,7 +419,7 @@ function loadContacts() {
             html += `
                 <div class="chat-item" data-chat="${id}">
                     <div class="chat-icon">
-                        <img src="${user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'User')}&background=ff00aa&color=fff`}" alt="avatar">
+                        <img src="${user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'User')}&background=10b981&color=fff`}" alt="avatar">
                     </div>
                     <div class="chat-info">
                         <div class="chat-name">${user.name || 'Пользователь'}</div>
@@ -346,20 +448,23 @@ function selectChat(chatId) {
     
     if (chatId === 'general') {
         elements.chatTitle.textContent = 'Общий чат';
+        elements.chatStatus.innerHTML = '<span class="online">● онлайн</span>';
         elements.currentChatAvatar.innerHTML = '<i class="fas fa-globe"></i>';
     } else {
         db.ref(`users/${chatId}`).once('value', (snap) => {
             const user = snap.val();
             if (user) {
                 elements.chatTitle.textContent = user.name || 'Пользователь';
-                elements.currentChatAvatar.innerHTML = `<img src="${user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'User')}&background=00f3ff&color=fff`}" alt="avatar">`;
+                elements.chatStatus.innerHTML = user.online ? 
+                    '<span class="online">● в сети</span>' : 
+                    '<span class="offline">● не в сети</span>';
+                elements.currentChatAvatar.innerHTML = `<img src="${user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'User')}&background=3b82f6&color=fff`}" alt="avatar">`;
             }
         });
     }
     
     loadMessages();
     
-    // Закрыть мобильное меню
     if (window.innerWidth <= 768) {
         document.querySelector('.sidebar')?.classList.remove('open');
     }
@@ -370,6 +475,7 @@ function loadMessages() {
     if (!currentUser) return;
     
     const messagesRef = db.ref(`chats/${currentChat}/messages`).limitToLast(50);
+    
     messagesRef.off();
     messagesRef.on('value', (snapshot) => {
         const data = snapshot.val();
@@ -410,7 +516,7 @@ function loadMessages() {
                 `;
             } else {
                 messageEl.innerHTML = `
-                    <div>${escapeHtml(msg.text || '')}</div>
+                    <div class="message-content">${escapeHtml(msg.text || '')}</div>
                     <div class="message-time">${time}</div>
                 `;
             }
@@ -432,7 +538,7 @@ async function sendMessage() {
     const messagesRef = db.ref(`chats/${currentChat}/messages`).push();
     
     await messagesRef.set({
-        text,
+        text: text,
         senderId: currentUser.uid,
         senderName: currentUser.displayName || 'User',
         timestamp: Date.now(),
@@ -446,7 +552,13 @@ async function startVoiceRecording(e) {
     if (isRecording || !currentUser) return;
     
     try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+            audio: {
+                echoCancellation: true,
+                noiseSuppression: true
+            } 
+        });
+        
         mediaRecorder = new MediaRecorder(stream);
         audioChunks = [];
         
@@ -462,8 +574,8 @@ async function startVoiceRecording(e) {
         
         mediaRecorder.start();
         isRecording = true;
-        elements.voiceBtn.style.background = '#ff4d4d';
-        showNotification('Запись... Отпустите кнопку', 'info');
+        elements.voiceBtn.classList.add('recording');
+        showNotification('🎤 Запись... Отпустите кнопку', 'info');
         
         setTimeout(() => {
             if (isRecording) stopVoiceRecording();
@@ -475,19 +587,19 @@ async function startVoiceRecording(e) {
 }
 
 function stopVoiceRecording() {
-    if (isRecording && mediaRecorder) {
+    if (isRecording && mediaRecorder && mediaRecorder.state !== 'inactive') {
         mediaRecorder.stop();
         isRecording = false;
-        elements.voiceBtn.style.background = '';
+        elements.voiceBtn.classList.remove('recording');
     }
 }
 
 async function uploadVoiceMessage(blob) {
     try {
         const filename = `voice_${Date.now()}_${currentUser.uid}.webm`;
-        const ref = storage.ref(`voice/${currentChat}/${filename}`);
-        await ref.put(blob);
-        const url = await ref.getDownloadURL();
+        const storageRef = storage.ref(`voice/${currentChat}/${filename}`);
+        await storageRef.put(blob);
+        const url = await storageRef.getDownloadURL();
         
         const msgRef = db.ref(`chats/${currentChat}/messages`).push();
         await msgRef.set({
@@ -502,19 +614,22 @@ async function uploadVoiceMessage(blob) {
         showNotification('Голосовое отправлено', 'success');
         
     } catch (error) {
-        showNotification('Ошибка отправки', 'error');
+        console.error(error);
+        showNotification('Ошибка отправки голосового', 'error');
     }
 }
 
 window.playAudio = (url) => {
-    new Audio(url).play();
+    const audio = new Audio(url);
+    audio.play().catch(() => {});
 };
 
 // ========== ЗВОНКИ ==========
 async function startCall() {
     try {
         localStream = await navigator.mediaDevices.getUserMedia({
-            video: true, audio: true
+            video: true,
+            audio: true
         });
         
         elements.localVideo.srcObject = localStream;
@@ -531,6 +646,7 @@ async function startCall() {
         showNotification('Звонок начат', 'success');
         
     } catch (error) {
+        console.error(error);
         showNotification('Нет доступа к камере/микрофону', 'error');
     }
 }
@@ -540,7 +656,8 @@ async function joinCall() {
     
     try {
         localStream = await navigator.mediaDevices.getUserMedia({
-            video: true, audio: true
+            video: true,
+            audio: true
         });
         
         elements.localVideo.srcObject = localStream;
@@ -548,6 +665,7 @@ async function joinCall() {
         
         elements.videoCall.classList.add('active');
         activeCall = true;
+        showNotification('Вы присоединились', 'success');
         
     } catch (error) {
         showNotification('Ошибка подключения', 'error');
@@ -556,7 +674,7 @@ async function joinCall() {
 
 function endCall() {
     if (localStream) {
-        localStream.getTracks().forEach(t => t.stop());
+        localStream.getTracks().forEach(track => track.stop());
     }
     
     db.ref(`calls/${currentChat}`).remove();
@@ -570,9 +688,12 @@ function toggleVideo() {
         const track = localStream.getVideoTracks()[0];
         if (track) {
             track.enabled = !track.enabled;
-            document.getElementById('toggle-video').innerHTML = track.enabled 
-                ? '<i class="fas fa-video"></i>' 
-                : '<i class="fas fa-video-slash"></i>';
+            const btn = document.getElementById('toggle-video');
+            if (btn) {
+                btn.innerHTML = track.enabled ? 
+                    '<i class="fas fa-video"></i>' : 
+                    '<i class="fas fa-video-slash"></i>';
+            }
         }
     }
 }
@@ -582,9 +703,12 @@ function toggleAudio() {
         const track = localStream.getAudioTracks()[0];
         if (track) {
             track.enabled = !track.enabled;
-            document.getElementById('toggle-audio').innerHTML = track.enabled 
-                ? '<i class="fas fa-microphone"></i>' 
-                : '<i class="fas fa-microphone-slash"></i>';
+            const btn = document.getElementById('toggle-audio');
+            if (btn) {
+                btn.innerHTML = track.enabled ? 
+                    '<i class="fas fa-microphone"></i>' : 
+                    '<i class="fas fa-microphone-slash"></i>';
+            }
         }
     }
 }
@@ -622,7 +746,7 @@ function setupMobileMenu() {
     
     document.addEventListener('touchstart', (e) => {
         touchStartX = e.touches[0].clientX;
-    });
+    }, { passive: true });
     
     document.addEventListener('touchend', (e) => {
         const touchEndX = e.changedTouches[0].clientX;
@@ -633,7 +757,7 @@ function setupMobileMenu() {
         } else if (diff < -50 && window.innerWidth <= 768) {
             document.querySelector('.sidebar')?.classList.remove('open');
         }
-    });
+    }, { passive: true });
     
     document.addEventListener('click', (e) => {
         if (window.innerWidth <= 768) {
@@ -646,25 +770,32 @@ function setupMobileMenu() {
 
 // ========== УВЕДОМЛЕНИЯ ==========
 function showNotification(message, type = 'info') {
+    if (!elements.notificationContainer) return;
+    
     const notification = document.createElement('div');
     notification.className = 'notification';
     
     let icon = '📢';
     if (type === 'success') icon = '✅';
     if (type === 'error') icon = '❌';
+    if (type === 'warning') icon = '⚠️';
     
     notification.innerHTML = `${icon} ${message}`;
     
-    if (type === 'error') notification.style.borderLeftColor = '#ff4d4d';
+    if (type === 'error') notification.style.borderLeftColor = '#ef4444';
     if (type === 'success') notification.style.borderLeftColor = '#10b981';
+    if (type === 'info') notification.style.borderLeftColor = '#3b82f6';
     
     elements.notificationContainer.appendChild(notification);
     
-    setTimeout(() => notification.remove(), 3000);
+    setTimeout(() => {
+        notification.remove();
+    }, 3000);
 }
 
 // ========== ЭКРАНИРОВАНИЕ ==========
 function escapeHtml(text) {
+    if (!text) return '';
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
