@@ -1,23 +1,25 @@
-/* ========== NEO CASCADE - ГЛАССМОРФИЗМ ========== */
+/* ========== NEO CASCADE - GLASSMORPHISM ========== */
 
 :root {
-    --glass-bg: rgba(15, 25, 35, 0.25);
-    --glass-border: rgba(255, 255, 255, 0.08);
-    --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.36);
-    --glass-blur: blur(16px);
+    --glass-bg: rgba(255, 255, 255, 0.1);
+    --glass-bg-dark: rgba(20, 25, 35, 0.6);
+    --glass-border: rgba(255, 255, 255, 0.15);
+    --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
+    --glass-blur: blur(12px);
     
-    --primary: #00f3ff;
-    --primary-dark: #0099cc;
-    --secondary: #ff00aa;
-    --accent: #ffee00;
+    --primary: #3b82f6;
+    --primary-dark: #2563eb;
+    --secondary: #10b981;
+    --danger: #ef4444;
+    --warning: #f59e0b;
     
-    --bg-deep: #0a0a1a;
-    --bg-dark: #121225;
-    --bg-card: #1a1a2e;
+    --bg-dark: #0f172a;
+    --bg-darker: #0a0f1c;
+    --bg-card: #1e293b;
     
     --text-primary: #ffffff;
-    --text-secondary: rgba(255, 255, 255, 0.85);
-    --text-muted: rgba(255, 255, 255, 0.55);
+    --text-secondary: rgba(255, 255, 255, 0.8);
+    --text-muted: rgba(255, 255, 255, 0.5);
 }
 
 * {
@@ -28,7 +30,7 @@
 
 body {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-    background: radial-gradient(circle at 20% 30%, #1a1a2e, #0a0a1a);
+    background: linear-gradient(135deg, #0f172a, #1e293b);
     color: var(--text-primary);
     height: 100vh;
     overflow: hidden;
@@ -36,7 +38,7 @@ body {
 
 /* ===== ГЛАССМОРФИЗМ ===== */
 .glass {
-    background: var(--glass-bg);
+    background: var(--glass-bg-dark);
     backdrop-filter: var(--glass-blur);
     -webkit-backdrop-filter: var(--glass-blur);
     border: 1px solid var(--glass-border);
@@ -50,8 +52,8 @@ body {
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(10, 10, 26, 0.7);
-    backdrop-filter: blur(20px);
+    background: rgba(15, 23, 42, 0.7);
+    backdrop-filter: blur(8px);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -61,42 +63,42 @@ body {
 .modal-content {
     width: 90%;
     max-width: 420px;
-    border-radius: 28px;
+    border-radius: 24px;
     overflow: hidden;
-    animation: modalAppear 0.4s ease;
+    animation: fadeIn 0.3s ease;
 }
 
-@keyframes modalAppear {
-    from { opacity: 0; transform: scale(0.9) translateY(20px); }
-    to { opacity: 1; transform: scale(1) translateY(0); }
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
 .modal-header {
-    padding: 36px 24px;
+    padding: 32px 24px;
     text-align: center;
-    background: linear-gradient(135deg, rgba(0, 243, 255, 0.15), rgba(255, 0, 170, 0.1));
+    background: rgba(59, 130, 246, 0.2);
+    border-bottom: 1px solid var(--glass-border);
 }
 
 .modal-header i {
-    font-size: 56px;
+    font-size: 48px;
     color: var(--primary);
-    filter: drop-shadow(0 0 20px rgba(0, 243, 255, 0.5));
     margin-bottom: 16px;
 }
 
 .modal-header h2 {
-    font-size: 32px;
-    font-weight: 700;
+    font-size: 28px;
+    font-weight: 600;
     margin-bottom: 8px;
-    background: linear-gradient(135deg, #fff, var(--primary));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
+}
+
+.modal-header p {
+    color: var(--text-secondary);
+    font-size: 14px;
 }
 
 .modal-body {
     padding: 32px 24px;
-    background: rgba(26, 26, 46, 0.4);
-    backdrop-filter: blur(20px);
 }
 
 /* ===== ФОРМЫ ===== */
@@ -107,66 +109,78 @@ body {
 
 .form-group input {
     width: 100%;
-    padding: 16px 20px 16px 48px;
-    background: rgba(10, 10, 26, 0.5);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 16px;
-    color: white;
+    padding: 14px 16px 14px 44px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    color: var(--text-primary);
     font-size: 15px;
     outline: none;
-    transition: all 0.3s ease;
+    transition: all 0.2s;
 }
 
 .form-group input:focus {
     border-color: var(--primary);
-    background: rgba(10, 10, 26, 0.7);
-    box-shadow: 0 0 20px rgba(0, 243, 255, 0.2);
+    background: rgba(59, 130, 246, 0.1);
+}
+
+.form-group input::placeholder {
+    color: var(--text-muted);
 }
 
 .input-icon {
     position: absolute;
-    left: 18px;
+    left: 16px;
     top: 50%;
     transform: translateY(-50%);
-    color: rgba(255, 255, 255, 0.5);
+    color: var(--text-muted);
     font-size: 16px;
 }
 
 /* ===== КНОПКИ ===== */
 .btn {
     width: 100%;
-    padding: 16px;
+    padding: 14px;
     border: none;
-    border-radius: 16px;
+    border-radius: 12px;
     font-size: 15px;
     font-weight: 600;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 10px;
+    gap: 8px;
     margin-bottom: 12px;
-    transition: all 0.3s ease;
+    transition: all 0.2s;
 }
 
 .btn-primary {
-    background: linear-gradient(135deg, #00f3ff, #0099cc);
+    background: var(--primary);
     color: white;
-    box-shadow: 0 0 20px rgba(0, 243, 255, 0.3);
+}
+
+.btn-primary:hover {
+    background: var(--primary-dark);
+    transform: translateY(-2px);
 }
 
 .btn-google {
     background: white;
-    color: #0a0a1a;
+    color: #0f172a;
+}
+
+.btn-google:hover {
+    background: #f1f5f9;
+    transform: translateY(-2px);
 }
 
 .btn-admin {
-    background: linear-gradient(135deg, #ff00aa, #ff4d4d);
+    background: var(--secondary);
     color: white;
-    box-shadow: 0 0 20px rgba(255, 0, 170, 0.3);
 }
 
-.btn:hover {
+.btn-admin:hover {
+    background: #0d9488;
     transform: translateY(-2px);
 }
 
@@ -174,7 +188,7 @@ body {
 .divider {
     text-align: center;
     margin: 20px 0;
-    color: rgba(255, 255, 255, 0.5);
+    color: var(--text-muted);
     position: relative;
 }
 
@@ -185,7 +199,7 @@ body {
     top: 50%;
     width: calc(50% - 40px);
     height: 1px;
-    background: rgba(255, 255, 255, 0.2);
+    background: var(--glass-border);
 }
 
 .divider::before { left: 0; }
@@ -201,36 +215,32 @@ body {
 
 /* ===== САЙДБАР ===== */
 .sidebar {
-    width: 340px;
+    width: 320px;
     display: flex;
     flex-direction: column;
-    border-right: 1px solid rgba(255, 255, 255, 0.05);
+    border-right: 1px solid var(--glass-border);
 }
 
 .sidebar-header {
-    padding: 24px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    padding: 20px;
+    border-bottom: 1px solid var(--glass-border);
 }
 
 .logo {
     display: flex;
     align-items: center;
     gap: 12px;
-    margin-bottom: 24px;
+    margin-bottom: 20px;
 }
 
 .logo i {
-    font-size: 28px;
+    font-size: 24px;
     color: var(--primary);
-    filter: drop-shadow(0 0 10px rgba(0, 243, 255, 0.5));
 }
 
 .logo h2 {
-    font-size: 22px;
-    font-weight: 700;
-    background: linear-gradient(135deg, #fff, var(--primary));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
+    font-size: 20px;
+    font-weight: 600;
 }
 
 .user-profile {
@@ -243,17 +253,23 @@ body {
 }
 
 .avatar {
-    width: 48px;
-    height: 48px;
+    width: 44px;
+    height: 44px;
     border-radius: 50%;
-    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
     display: flex;
     align-items: center;
     justify-content: center;
     color: white;
-    font-size: 20px;
+    font-size: 18px;
     flex-shrink: 0;
     overflow: hidden;
+}
+
+.avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
 }
 
 .user-info {
@@ -262,18 +278,23 @@ body {
 
 .user-info #username {
     font-weight: 600;
+    font-size: 15px;
     margin-bottom: 2px;
 }
 
+.user-info small {
+    font-size: 12px;
+}
+
 .btn-icon {
-    width: 40px;
-    height: 40px;
+    width: 36px;
+    height: 36px;
     border-radius: 50%;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--glass-border);
     background: transparent;
-    color: rgba(255, 255, 255, 0.7);
+    color: var(--text-secondary);
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: all 0.2s;
 }
 
 .btn-icon:hover {
@@ -284,32 +305,33 @@ body {
 
 /* ===== ПОИСК ===== */
 .chat-search {
-    padding: 16px 24px;
+    padding: 16px 20px;
     position: relative;
 }
 
 .chat-search i {
     position: absolute;
-    left: 40px;
+    left: 36px;
     top: 50%;
     transform: translateY(-50%);
-    color: rgba(255, 255, 255, 0.4);
+    color: var(--text-muted);
+    font-size: 14px;
 }
 
 #chat-search {
     width: 100%;
-    padding: 12px 16px 12px 48px;
+    padding: 10px 16px 10px 44px;
     background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--glass-border);
     border-radius: 50px;
-    color: white;
+    color: var(--text-primary);
     font-size: 14px;
     outline: none;
 }
 
 #chat-search:focus {
     border-color: var(--primary);
-    background: rgba(0, 243, 255, 0.05);
+    background: rgba(59, 130, 246, 0.05);
 }
 
 /* ===== СПИСОК ЧАТОВ ===== */
@@ -324,9 +346,9 @@ body {
     align-items: center;
     gap: 12px;
     padding: 12px;
-    border-radius: 16px;
+    border-radius: 12px;
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: all 0.2s;
     margin-bottom: 4px;
 }
 
@@ -335,24 +357,31 @@ body {
 }
 
 .chat-item.active {
-    background: rgba(0, 243, 255, 0.1);
+    background: rgba(59, 130, 246, 0.15);
     border-left: 3px solid var(--primary);
 }
 
 .chat-icon {
-    width: 48px;
-    height: 48px;
-    border-radius: 14px;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
     color: white;
-    font-size: 20px;
+    font-size: 18px;
     flex-shrink: 0;
+    overflow: hidden;
 }
 
 .chat-icon.general {
     background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+}
+
+.chat-icon img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
 }
 
 .chat-info {
@@ -361,35 +390,35 @@ body {
 
 .chat-name {
     font-weight: 600;
+    font-size: 15px;
     margin-bottom: 4px;
 }
 
 .chat-preview {
     font-size: 12px;
-    color: rgba(255, 255, 255, 0.5);
+    color: var(--text-muted);
 }
 
 /* ===== КНОПКА ЗВОНКА ===== */
 .btn-video {
-    margin: 20px 24px;
-    padding: 14px;
-    background: linear-gradient(135deg, var(--secondary), #ff4d4d);
+    margin: 16px 20px;
+    padding: 12px;
+    background: var(--secondary);
     border: none;
-    border-radius: 16px;
+    border-radius: 12px;
     color: white;
     font-weight: 600;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 10px;
-    transition: all 0.3s ease;
-    box-shadow: 0 0 20px rgba(255, 0, 170, 0.2);
+    gap: 8px;
+    transition: all 0.2s;
 }
 
 .btn-video:hover {
+    background: #0d9488;
     transform: translateY(-2px);
-    box-shadow: 0 0 30px rgba(255, 0, 170, 0.4);
 }
 
 /* ===== ОБЛАСТЬ ЧАТА ===== */
@@ -397,22 +426,22 @@ body {
     flex: 1;
     display: flex;
     flex-direction: column;
-    background: rgba(10, 10, 26, 0.3);
-    backdrop-filter: blur(10px);
+    background: rgba(15, 23, 42, 0.4);
+    backdrop-filter: blur(8px);
 }
 
 .chat-header {
-    padding: 20px 24px;
+    padding: 16px 20px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    border-bottom: 1px solid var(--glass-border);
 }
 
 .chat-title {
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: 12px;
 }
 
 .chat-title h3 {
@@ -432,7 +461,7 @@ body {
     content: '';
     width: 8px;
     height: 8px;
-    background: #10b981;
+    background: var(--secondary);
     border-radius: 50%;
     display: inline-block;
 }
@@ -441,7 +470,7 @@ body {
 .messages {
     flex: 1;
     overflow-y: auto;
-    padding: 24px;
+    padding: 20px;
     display: flex;
     flex-direction: column;
     gap: 12px;
@@ -450,112 +479,139 @@ body {
 .welcome {
     text-align: center;
     padding: 60px 20px;
-    color: rgba(255, 255, 255, 0.5);
+    color: var(--text-muted);
 }
 
 .welcome i {
-    font-size: 64px;
+    font-size: 56px;
     color: var(--primary);
-    filter: drop-shadow(0 0 20px rgba(0, 243, 255, 0.3));
-    margin-bottom: 20px;
+    margin-bottom: 16px;
+    opacity: 0.5;
 }
 
 .welcome h3 {
     font-size: 24px;
-    color: white;
+    color: var(--text-primary);
     margin-bottom: 8px;
 }
 
 .message {
     max-width: 70%;
-    padding: 12px 18px;
+    padding: 12px 16px;
     border-radius: 18px;
     position: relative;
-    animation: messageSlide 0.3s ease;
-    backdrop-filter: blur(10px);
+    animation: slideIn 0.2s ease;
 }
 
-@keyframes messageSlide {
+@keyframes slideIn {
     from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
 }
 
 .message.sent {
     align-self: flex-end;
-    background: rgba(0, 243, 255, 0.15);
-    border-bottom-right-radius: 4px;
-    border-right: 2px solid var(--primary);
+    background: rgba(59, 130, 246, 0.2);
+    border: 1px solid rgba(59, 130, 246, 0.3);
 }
 
 .message.received {
     align-self: flex-start;
     background: rgba(255, 255, 255, 0.05);
-    border-bottom-left-radius: 4px;
-    border-left: 2px solid var(--secondary);
+    border: 1px solid var(--glass-border);
+}
+
+.message-content {
+    font-size: 14px;
+    line-height: 1.5;
+    word-wrap: break-word;
 }
 
 .message-time {
     font-size: 10px;
-    opacity: 0.5;
+    color: var(--text-muted);
     margin-top: 4px;
     text-align: right;
 }
 
 /* ===== ВВОД СООБЩЕНИЯ ===== */
 .message-input {
-    padding: 20px 24px;
+    padding: 16px 20px;
     display: flex;
     gap: 12px;
     align-items: center;
-    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    border-top: 1px solid var(--glass-border);
 }
 
 .btn-voice {
-    width: 48px;
-    height: 48px;
+    width: 44px;
+    height: 44px;
     border-radius: 50%;
-    border: none;
-    background: rgba(255, 255, 255, 0.05);
-    color: rgba(255, 255, 255, 0.7);
+    border: 1px solid var(--glass-border);
+    background: transparent;
+    color: var(--text-secondary);
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: all 0.2s;
 }
 
 .btn-voice:hover {
-    background: var(--secondary);
+    background: var(--primary);
     color: white;
+    border-color: var(--primary);
+}
+
+.btn-voice.recording {
+    background: var(--danger);
+    color: white;
+    border-color: var(--danger);
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
 }
 
 #message-input {
     flex: 1;
-    padding: 14px 20px;
+    padding: 12px 16px;
     background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--glass-border);
     border-radius: 50px;
-    color: white;
-    font-size: 15px;
+    color: var(--text-primary);
+    font-size: 14px;
     outline: none;
 }
 
 #message-input:focus {
     border-color: var(--primary);
-    background: rgba(0, 243, 255, 0.05);
+    background: rgba(59, 130, 246, 0.05);
+}
+
+#message-input:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 
 .btn-send {
-    width: 48px;
-    height: 48px;
+    width: 44px;
+    height: 44px;
     border-radius: 50%;
     border: none;
-    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+    background: var(--primary);
     color: white;
     cursor: pointer;
-    transition: all 0.3s ease;
-    box-shadow: 0 0 20px rgba(0, 243, 255, 0.2);
+    transition: all 0.2s;
 }
 
 .btn-send:hover {
-    transform: scale(1.1);
+    background: var(--primary-dark);
+    transform: scale(1.05);
+}
+
+.btn-send:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
 }
 
 /* ===== ВИДЕОЗВОНОК ===== */
@@ -565,8 +621,8 @@ body {
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(10, 10, 26, 0.95);
-    backdrop-filter: blur(20px);
+    background: rgba(15, 23, 42, 0.95);
+    backdrop-filter: blur(12px);
     display: none;
     flex-direction: column;
     z-index: 10000;
@@ -586,9 +642,10 @@ body {
 
 .video-wrapper {
     position: relative;
-    border-radius: 20px;
+    border-radius: 16px;
     overflow: hidden;
     aspect-ratio: 16/9;
+    background: rgba(0, 0, 0, 0.3);
 }
 
 .video-wrapper video {
@@ -601,39 +658,45 @@ body {
     position: absolute;
     bottom: 12px;
     left: 12px;
-    background: rgba(0, 0, 0, 0.5);
-    backdrop-filter: blur(4px);
+    background: rgba(0, 0, 0, 0.6);
     padding: 6px 12px;
     border-radius: 50px;
     font-size: 12px;
+    backdrop-filter: blur(4px);
 }
 
 .video-controls {
     padding: 20px;
     display: flex;
     justify-content: center;
-    gap: 20px;
+    gap: 16px;
+    background: rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(12px);
 }
 
 .btn-call {
-    width: 56px;
-    height: 56px;
+    width: 52px;
+    height: 52px;
     border-radius: 50%;
     border: none;
     background: rgba(255, 255, 255, 0.1);
     color: white;
-    font-size: 20px;
+    font-size: 18px;
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: all 0.2s;
 }
 
 .btn-call:hover {
     background: var(--primary);
-    transform: scale(1.1);
+    transform: scale(1.05);
 }
 
 .btn-end {
-    background: #ff4d4d !important;
+    background: var(--danger) !important;
+}
+
+.btn-end:hover {
+    background: #dc2626 !important;
 }
 
 /* ===== УВЕДОМЛЕНИЯ ===== */
@@ -642,32 +705,35 @@ body {
     top: 20px;
     right: 20px;
     z-index: 10001;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
 }
 
 .notification {
-    background: rgba(26, 26, 46, 0.8);
-    backdrop-filter: blur(20px);
+    background: rgba(30, 41, 59, 0.8);
+    backdrop-filter: blur(12px);
     color: white;
     padding: 12px 20px;
-    border-radius: 50px;
-    margin-bottom: 8px;
+    border-radius: 12px;
     border-left: 4px solid var(--primary);
-    animation: notificationSlide 0.3s ease;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    animation: slideRight 0.3s ease;
     font-size: 14px;
 }
 
-@keyframes notificationSlide {
+@keyframes slideRight {
     from { opacity: 0; transform: translateX(100%); }
     to { opacity: 1; transform: translateX(0); }
 }
 
 /* ===== СТАТУСЫ ===== */
 .online {
-    color: #10b981 !important;
+    color: var(--secondary) !important;
 }
 
 .offline {
-    color: rgba(255, 255, 255, 0.5) !important;
+    color: var(--text-muted) !important;
 }
 
 /* ===== СКРОЛЛ ===== */
@@ -685,7 +751,7 @@ body {
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: var(--primary);
+    background: rgba(255, 255, 255, 0.3);
 }
 
 /* ===== АДАПТИВ ===== */
@@ -704,7 +770,15 @@ body {
         left: 0;
     }
     
+    .chat-area {
+        width: 100%;
+    }
+    
     .message {
         max-width: 85%;
+    }
+    
+    .video-grid {
+        grid-template-columns: 1fr;
     }
 }
