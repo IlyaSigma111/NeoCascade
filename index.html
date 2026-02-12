@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NeoCascade | Мессенджер</title>
     
     <!-- Яндекс.Метрика -->
@@ -19,18 +19,11 @@
             webvisor:true, 
             clickmap:true, 
             ecommerce:"dataLayer", 
-            referrer: document.referrer, 
-            url: location.href, 
             accurateTrackBounce:true, 
             trackLinks:true
         });
     </script>
-    <noscript>
-        <div>
-            <img src="https://mc.yandex.ru/watch/106798492" style="position:absolute; left:-9999px;" alt="" />
-        </div>
-    </noscript>
-    <!-- /Яндекс.Метрика -->
+    <noscript><div><img src="https://mc.yandex.ru/watch/106798492" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -38,12 +31,12 @@
 </head>
 <body>
     <!-- МОДАЛКА ВХОДА -->
-    <div id="login-modal" class="modal" style="display: flex;">
+    <div id="login-modal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <i class="fas fa-water" style="font-size: 48px;"></i>
+                <i class="fas fa-water"></i>
                 <h2>NeoCascade</h2>
-                <p>Войди в систему</p>
+                <p>Войдите в мессенджер</p>
             </div>
             
             <div class="modal-body">
@@ -52,7 +45,6 @@
                     <div class="form-group">
                         <input type="email" id="login-email" placeholder="Email">
                     </div>
-                    
                     <div class="form-group">
                         <input type="password" id="login-password" placeholder="Пароль">
                     </div>
@@ -61,65 +53,63 @@
                         <i class="fas fa-sign-in-alt"></i> Войти
                     </button>
                     
-                    <div style="text-align: center; margin: 16px 0; color: #94A3B8;">или</div>
+                    <div class="divider">или</div>
                     
                     <button class="btn btn-google" id="google-login-btn">
-                        <i class="fab fa-google"></i> Войти через Google
+                        <i class="fab fa-google"></i> Google
                     </button>
                     
                     <button class="btn btn-admin" id="admin-login-btn">
-                        <i class="fas fa-crown"></i> Войти как Админ
+                        <i class="fas fa-crown"></i> Админ
                     </button>
                     
-                    <p style="text-align: center; margin-top: 20px; color: #94A3B8;">
+                    <p class="switch-text">
                         Нет аккаунта? 
-                        <a href="#" id="show-register" style="color: #3B82F6; text-decoration: none;">Создать</a>
+                        <a href="#" id="show-register">Создать</a>
                     </p>
                 </div>
                 
-                <!-- Форма регистрации (скрыта) -->
+                <!-- Форма регистрации -->
                 <div id="register-form" style="display: none;">
                     <div class="form-group">
                         <input type="text" id="register-name" placeholder="Имя">
                     </div>
-                    
                     <div class="form-group">
                         <input type="email" id="register-email" placeholder="Email">
                     </div>
-                    
                     <div class="form-group">
-                        <input type="password" id="register-password" placeholder="Пароль (мин. 6 символов)">
+                        <input type="password" id="register-password" placeholder="Пароль (6+ символов)">
                     </div>
                     
                     <button class="btn btn-primary" id="email-register-btn">
                         <i class="fas fa-user-plus"></i> Зарегистрироваться
                     </button>
                     
-                    <p style="text-align: center; margin-top: 20px; color: #94A3B8;">
+                    <p class="switch-text">
                         Уже есть аккаунт? 
-                        <a href="#" id="show-login" style="color: #3B82F6; text-decoration: none;">Войти</a>
+                        <a href="#" id="show-login">Войти</a>
                     </p>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- ОСНОВНОЙ ИНТЕРФЕЙС (скрыт) -->
-    <div class="container" id="main-container" style="display: none;">
+    <!-- ОСНОВНОЙ ИНТЕРФЕЙС (СКРЫТ) -->
+    <div id="main-container" class="container" style="display: none;">
         <div class="sidebar">
             <div class="sidebar-header">
-                <div style="display: flex; align-items: center; gap: 10px;">
-                    <i class="fas fa-water" style="color: #3B82F6; font-size: 24px;"></i>
-                    <h1 style="font-size: 20px;">NeoCascade</h1>
+                <div class="logo">
+                    <i class="fas fa-water"></i>
+                    <h2>NeoCascade</h2>
                 </div>
                 
                 <div class="user-profile">
                     <div class="avatar" id="user-avatar">
                         <i class="fas fa-user"></i>
                     </div>
-                    <div style="flex: 1;">
-                        <div id="username" style="font-weight: 600;">Гость</div>
-                        <small id="user-status" style="color: #94A3B8;">не в сети</small>
+                    <div class="user-info">
+                        <div id="username">Гость</div>
+                        <small id="user-status">не в сети</small>
                     </div>
                     <button class="btn-icon" id="logout-btn">
                         <i class="fas fa-sign-out-alt"></i>
@@ -129,12 +119,12 @@
             
             <div class="chat-list" id="chat-list">
                 <div class="chat-item active" data-chat="general">
-                    <div class="chat-icon" style="background: #3B82F6;">
+                    <div class="chat-icon general">
                         <i class="fas fa-globe"></i>
                     </div>
-                    <div style="flex: 1;">
-                        <div style="font-weight: 600;">Общий чат</div>
-                        <div style="font-size: 12px; color: #94A3B8;">Добро пожаловать!</div>
+                    <div class="chat-info">
+                        <div class="chat-name">Общий чат</div>
+                        <div class="chat-preview">Добро пожаловать!</div>
                     </div>
                 </div>
             </div>
@@ -142,22 +132,22 @@
         
         <div class="chat-area">
             <div class="chat-header">
-                <div style="display: flex; align-items: center; gap: 12px;">
-                    <div class="avatar" style="background: #3B82F6;">
+                <div class="chat-title">
+                    <div class="avatar">
                         <i class="fas fa-globe"></i>
                     </div>
                     <div>
                         <h3 id="chat-title">Общий чат</h3>
-                        <p id="chat-status" style="font-size: 12px; color: #94A3B8;">онлайн</p>
+                        <p id="chat-status">онлайн</p>
                     </div>
                 </div>
             </div>
             
             <div class="messages" id="messages-container">
-                <div style="text-align: center; padding: 40px; color: #94A3B8;">
-                    <i class="fas fa-water" style="font-size: 48px; color: #3B82F6; margin-bottom: 16px;"></i>
-                    <h2 style="color: white; margin-bottom: 8px;">NeoCascade</h2>
-                    <p>Войдите, чтобы начать общение</p>
+                <div class="welcome">
+                    <i class="fas fa-water"></i>
+                    <h3>NeoCascade</h3>
+                    <p>Войдите чтобы начать общение</p>
                 </div>
             </div>
             
@@ -170,15 +160,15 @@
         </div>
     </div>
 
-    <!-- УВЕДОМЛЕНИЯ -->
-    <div id="notification-container" style="position: fixed; top: 20px; right: 20px; z-index: 10000;"></div>
+    <!-- КОНТЕЙНЕР ДЛЯ УВЕДОМЛЕНИЙ -->
+    <div id="notification-container"></div>
 
-    <!-- Firebase -->
+    <!-- FIREBASE -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
     
-    <!-- Скрипты -->
-    <script type="module" src="script.js"></script>
+    <!-- СКРИПТ -->
+    <script src="script.js"></script>
 </body>
 </html>
