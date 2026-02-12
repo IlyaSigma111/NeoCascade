@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NeoCascade | Мессенджер</title>
     
     <!-- Яндекс.Метрика -->
@@ -14,9 +14,8 @@
         (window, document,'script','https://mc.yandex.ru/metrika/tag.js?id=106798492', 'ym');
         ym(106798492, 'init', {ssr:true, webvisor:true, clickmap:true, trackLinks:true});
     </script>
-    <noscript><div><img src="https://mc.yandex.ru/watch/106798492" style="position:absolute; left:-9999px;"></div></noscript>
     
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
 </head>
@@ -30,7 +29,6 @@
                 <p>Войдите в систему</p>
             </div>
             <div class="modal-body">
-                <!-- ЛОГИН -->
                 <div id="login-form">
                     <div class="form-group">
                         <input type="email" id="login-email" placeholder="Email">
@@ -55,7 +53,6 @@
                     </p>
                 </div>
                 
-                <!-- РЕГИСТРАЦИЯ -->
                 <div id="register-form" style="display: none;">
                     <div class="form-group">
                         <input type="text" id="register-name" placeholder="Ваше имя">
@@ -81,9 +78,8 @@
     </div>
 
     <!-- ОСНОВНОЙ ИНТЕРФЕЙС -->
-    <div id="main-container" class="container">
-        <!-- САЙДБАР -->
-        <div class="sidebar glass" id="sidebar">
+    <div id="main-container" class="container" style="display: none;">
+        <div class="sidebar">
             <div class="sidebar-header">
                 <div class="logo">
                     <i class="fas fa-water"></i>
@@ -98,7 +94,7 @@
                         <div id="username">Гость</div>
                         <small id="user-status" class="offline">не в сети</small>
                     </div>
-                    <button class="btn-icon" id="logout-btn" title="Выйти">
+                    <button class="btn-icon" id="logout-btn">
                         <i class="fas fa-sign-out-alt"></i>
                     </button>
                 </div>
@@ -106,8 +102,32 @@
             
             <div class="chat-search">
                 <i class="fas fa-search"></i>
-                <input type="text" id="chat-search" placeholder="Поиск чатов...">
+                <input type="text" id="chat-search" placeholder="Поиск...">
             </div>
+            
+            <!-- ТЕМЫ -->
+            <div id="topic-list" style="padding: 8px 0;"></div>
+            
+            <!-- КНОПКА СОЗДАНИЯ ТЕМЫ -->
+            <button id="create-topic-btn" style="
+                margin: 8px 16px;
+                padding: 10px;
+                background: rgba(139, 92, 246, 0.2);
+                border: 1px solid rgba(139, 92, 246, 0.3);
+                border-radius: 12px;
+                color: white;
+                font-size: 13px;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 8px;
+            ">
+                <i class="fas fa-plus-circle"></i> Создать тему
+            </button>
+            
+            <!-- КОНТАКТЫ -->
+            <div id="contacts-list" style="padding: 8px 0;"></div>
             
             <div class="chat-list" id="chat-list">
                 <div class="chat-item active" data-chat="general">
@@ -122,14 +142,12 @@
             </div>
             
             <button class="btn-video" id="start-group-call">
-                <i class="fas fa-video"></i>
-                <span>Начать видеозвонок</span>
+                <i class="fas fa-video"></i> Видеозвонок
             </button>
         </div>
         
-        <!-- ЧАТ -->
         <div class="chat-area">
-            <div class="chat-header glass">
+            <div class="chat-header">
                 <div class="chat-title">
                     <div class="avatar" id="current-chat-avatar">
                         <i class="fas fa-globe"></i>
@@ -140,7 +158,7 @@
                     </div>
                 </div>
                 <div class="chat-actions">
-                    <button class="btn-icon" id="join-call-btn" title="Присоединиться к звонку">
+                    <button class="btn-icon" id="join-call-btn" disabled>
                         <i class="fas fa-phone"></i>
                     </button>
                 </div>
@@ -154,8 +172,8 @@
                 </div>
             </div>
             
-            <div class="message-input glass">
-                <button class="btn-voice" id="voice-btn" title="Удерживайте для записи голосового">
+            <div class="message-input">
+                <button class="btn-voice" id="voice-btn">
                     <i class="fas fa-microphone"></i>
                 </button>
                 <input type="text" id="message-input" placeholder="Введите сообщение..." disabled>
@@ -169,20 +187,19 @@
     <!-- ВИДЕОЗВОНОК -->
     <div id="video-call-container" class="video-call">
         <div class="video-grid">
-            <div class="video-wrapper glass">
+            <div class="video-wrapper">
                 <video id="local-video" autoplay muted playsinline></video>
                 <div class="video-label">Вы</div>
             </div>
-            <div id="remote-videos"></div>
         </div>
-        <div class="video-controls glass">
-            <button class="btn-call" id="toggle-video" title="Включить/выключить видео">
+        <div class="video-controls">
+            <button class="btn-call" id="toggle-video">
                 <i class="fas fa-video"></i>
             </button>
-            <button class="btn-call" id="toggle-audio" title="Включить/выключить микрофон">
+            <button class="btn-call" id="toggle-audio">
                 <i class="fas fa-microphone"></i>
             </button>
-            <button class="btn-call btn-end" id="end-call" title="Завершить звонок">
+            <button class="btn-call btn-end" id="end-call">
                 <i class="fas fa-phone-slash"></i>
             </button>
         </div>
