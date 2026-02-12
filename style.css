@@ -1,4 +1,5 @@
-/* ========== NEO CASCADE - БАЗОВЫЙ CSS ========== */
+/* ========== NEO CASCADE - РАБОЧАЯ ВЕРСИЯ ========== */
+
 * {
     margin: 0;
     padding: 0;
@@ -6,14 +7,14 @@
 }
 
 body {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-family: 'Inter', -apple-system, sans-serif;
     background: #0F172A;
     color: white;
     height: 100vh;
     overflow: hidden;
 }
 
-/* ===== МОДАЛКА ===== */
+/* ===== МОДАЛКА ВХОДА ===== */
 .modal {
     position: fixed;
     top: 0;
@@ -33,7 +34,7 @@ body {
     background: #1E293B;
     border-radius: 24px;
     overflow: hidden;
-    box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.5);
 }
 
 .modal-header {
@@ -103,6 +104,9 @@ body {
     gap: 8px;
     margin-bottom: 12px;
     transition: all 0.2s;
+    position: relative;
+    z-index: 1;
+    pointer-events: auto !important;
 }
 
 .btn-primary {
@@ -132,9 +136,58 @@ body {
     background: linear-gradient(135deg, #D97706, #B45309);
 }
 
+.btn:active {
+    transform: scale(0.98);
+}
+
 .btn:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+}
+
+/* ===== ДИВАЙДЕР ===== */
+.divider {
+    text-align: center;
+    margin: 16px 0;
+    color: #94A3B8;
+    font-size: 14px;
+    position: relative;
+}
+
+.divider::before,
+.divider::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    width: 45%;
+    height: 1px;
+    background: #334155;
+}
+
+.divider::before {
+    left: 0;
+}
+
+.divider::after {
+    right: 0;
+}
+
+/* ===== ТЕКСТ ПЕРЕКЛЮЧЕНИЯ ===== */
+.switch-text {
+    text-align: center;
+    margin-top: 20px;
+    color: #94A3B8;
+    font-size: 14px;
+}
+
+.switch-text a {
+    color: #3B82F6;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.switch-text a:hover {
+    text-decoration: underline;
 }
 
 /* ===== ОСНОВНОЙ ИНТЕРФЕЙС ===== */
@@ -158,11 +211,27 @@ body {
     border-bottom: 1px solid #334155;
 }
 
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.logo i {
+    font-size: 24px;
+    color: #3B82F6;
+}
+
+.logo h2 {
+    font-size: 20px;
+    color: white;
+}
+
 .user-profile {
     display: flex;
     align-items: center;
     gap: 12px;
-    margin-top: 20px;
 }
 
 .avatar {
@@ -183,6 +252,20 @@ body {
     width: 100%;
     height: 100%;
     object-fit: cover;
+}
+
+.user-info {
+    flex: 1;
+}
+
+.user-info #username {
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.user-info small {
+    font-size: 12px;
+    color: #94A3B8;
 }
 
 .btn-icon {
@@ -230,11 +313,6 @@ body {
     background: #2563EB;
 }
 
-.chat-item.active .chat-icon {
-    background: white !important;
-    color: #2563EB;
-}
-
 .chat-icon {
     width: 48px;
     height: 48px;
@@ -247,11 +325,34 @@ body {
     flex-shrink: 0;
 }
 
+.chat-icon.general {
+    background: #3B82F6;
+}
+
 .chat-icon img {
     width: 100%;
     height: 100%;
     border-radius: 12px;
     object-fit: cover;
+}
+
+.chat-info {
+    flex: 1;
+}
+
+.chat-name {
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.chat-preview {
+    font-size: 12px;
+    color: #94A3B8;
+}
+
+.chat-item.active .chat-name,
+.chat-item.active .chat-preview {
+    color: white;
 }
 
 /* ===== ОБЛАСТЬ ЧАТА ===== */
@@ -268,6 +369,23 @@ body {
     border-bottom: 1px solid #334155;
 }
 
+.chat-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.chat-title h3 {
+    font-size: 18px;
+    margin-bottom: 4px;
+}
+
+.chat-title p {
+    font-size: 12px;
+    color: #94A3B8;
+}
+
+/* ===== СООБЩЕНИЯ ===== */
 .messages {
     flex: 1;
     overflow-y: auto;
@@ -277,7 +395,23 @@ body {
     gap: 12px;
 }
 
-/* ===== СООБЩЕНИЯ ===== */
+.welcome {
+    text-align: center;
+    padding: 40px;
+    color: #94A3B8;
+}
+
+.welcome i {
+    font-size: 48px;
+    color: #3B82F6;
+    margin-bottom: 16px;
+}
+
+.welcome h3 {
+    color: white;
+    margin-bottom: 8px;
+}
+
 .message {
     max-width: 70%;
     padding: 12px 16px;
@@ -352,14 +486,23 @@ body {
 
 .btn-send:hover {
     background: #2563EB;
+    transform: scale(1.05);
 }
 
 .btn-send:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+    transform: none;
 }
 
 /* ===== УВЕДОМЛЕНИЯ ===== */
+#notification-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 10000;
+}
+
 .notification {
     background: #1E293B;
     color: white;
@@ -398,32 +541,6 @@ body {
     to { transform: rotate(360deg); }
 }
 
-/* ===== АДАПТИВ ===== */
-@media (max-width: 768px) {
-    .sidebar {
-        position: fixed;
-        left: 0;
-        top: 0;
-        width: 85%;
-        height: 100vh;
-        z-index: 1000;
-        transform: translateX(-100%);
-        transition: transform 0.3s ease;
-    }
-    
-    .sidebar.open {
-        transform: translateX(0);
-    }
-    
-    .chat-area {
-        width: 100%;
-    }
-    
-    .message {
-        max-width: 85%;
-    }
-}
-
 /* ===== СТАТУСЫ ===== */
 .online {
     color: #10B981 !important;
@@ -449,4 +566,30 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
     background: #475569;
+}
+
+/* ===== АДАПТИВ ===== */
+@media (max-width: 768px) {
+    .sidebar {
+        position: fixed;
+        left: 0;
+        top: 0;
+        width: 85%;
+        height: 100vh;
+        z-index: 1000;
+        transform: translateX(-100%);
+        transition: transform 0.3s ease;
+    }
+    
+    .sidebar.open {
+        transform: translateX(0);
+    }
+    
+    .chat-area {
+        width: 100%;
+    }
+    
+    .message {
+        max-width: 85%;
+    }
 }
