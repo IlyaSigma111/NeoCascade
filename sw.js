@@ -1,16 +1,20 @@
-const CACHE_NAME = 'neocascade-v2';
+const CACHE_NAME = 'neocascade-v3';
 const urlsToCache = [
     '/',
     '/index.html',
     '/style.css',
     '/script.js',
     '/firebase-config.js',
+    '/manifest.json',
     'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css',
-    'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Orbitron:wght@400;700&display=swap',
-    'https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css'
+    'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap',
+    'https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js',
+    'https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js',
+    'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js',
+    'https://www.gstatic.com/firebasejs/10.8.0/firebase-storage-compat.js'
 ];
 
-// Установка Service Worker
+// Установка SW
 self.addEventListener('install', event => {
     event.waitUntil(
         caches.open(CACHE_NAME)
@@ -19,7 +23,7 @@ self.addEventListener('install', event => {
     );
 });
 
-// Активация и очистка старых кешей
+// Активация - очистка старых кешей
 self.addEventListener('activate', event => {
     event.waitUntil(
         caches.keys().then(cacheNames => {
@@ -34,20 +38,20 @@ self.addEventListener('activate', event => {
     );
 });
 
-// Стратегия кеширования: Network First, затем Cache
+// Стратегия: Network First, затем Cache
 self.addEventListener('fetch', event => {
-    // Пропускаем не-GET запросы и chrome-extension
-    if (event.request.method !== 'GET' || event.request.url.startsWith('chrome-extension://')) {
+    if (event.request.method !== 'GET' || 
+        event.request.url.startsWith('chrome-extension://') ||
+        event.request.url.includes('firebaseio.com') ||
+        event.request.url.includes('googleapis.com')) {
         return;
     }
 
     event.respondWith(
         fetch(event.request)
             .then(response => {
-                // Клонируем ответ
                 const responseClone = response.clone();
                 
-                // Кешируем успешные ответы
                 if (response.status === 200) {
                     caches.open(CACHE_NAME)
                         .then(cache => cache.put(event.request, responseClone));
@@ -56,15 +60,11 @@ self.addEventListener('fetch', event => {
                 return response;
             })
             .catch(() => {
-                // Если сеть недоступна, ищем в кеше
                 return caches.match(event.request)
                     .then(response => {
-                        if (response) {
-                            return response;
-                        }
+                        if (response) return response;
                         
-                        // Для страниц возвращаем заглавную
-                        if (event.request.headers.get('accept').includes('text/html')) {
+                        if (event.request.headers.get('accept')?.includes('text/html')) {
                             return caches.match('/');
                         }
                     });
@@ -72,48 +72,43 @@ self.addEventListener('fetch', event => {
     );
 });
 
-// Обработка push-уведомлений
+// Push уведомления
 self.addEventListener('push', event => {
-    const data = event.data.json();
+    if (!event.data) return;
     
-    const options = {
-        body: data.body,
-        icon: '/icon.png',
-        badge: '/badge.png',
-        vibrate: [100, 50, 100],
-        data: {
-            url: data.url || '/'
-        },
-        actions: [
-            { action: 'open', title: 'Открыть' },
-            { action: 'close', title: 'Закрыть' }
-        ]
-    };
-    
-    event.waitUntil(
-        self.registration.showNotification(data.title, options)
-    );
+    try {
+        const data = event.data.json();
+        
+        const options = {
+            body: data.body || 'Новое сообщение в NeoCascade',
+            icon: 'https://img.icons8.com/fluency/96/000000/chat.png',
+            badge: 'https://img.icons8.com/fluency/96/000000/chat.png',
+            vibrate: [100, 50, 100],
+            data: {
+                url: data.url || '/'
+            },
+            actions: [
+                { action: 'open', title: '📱 Открыть' },
+                { action: 'close', title: '❌ Закрыть' }
+            ]
+        };
+        
+        event.waitUntil(
+            self.registration.showNotification('NeoCascade', options)
+        );
+        
+    } catch (e) {
+        console.error('Push error:', e);
+    }
 });
 
-// Обработка кликов по уведомлениям
+// Клик по уведомлению
 self.addEventListener('notificationclick', event => {
     event.notification.close();
     
     if (event.action === 'open') {
         event.waitUntil(
-            clients.openWindow(event.notification.data.url)
+            clients.openWindow(event.notification.data.url || '/')
         );
     }
 });
-
-// Периодическая синхронизация (фоновое обновление)
-self.addEventListener('periodicsync', event => {
-    if (event.tag === 'update-messages') {
-        event.waitUntil(updateMessages());
-    }
-});
-
-async function updateMessages() {
-    // Здесь можно реализовать фоновую синхронизацию сообщений
-    console.log('Background sync for messages');
-}
