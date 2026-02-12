@@ -1,4 +1,4 @@
-// ========== FIREBASE КОНФИГ ==========
+// ========== FIREBASE ==========
 const firebaseConfig = {
     apiKey: "AIzaSyDxGOGD6Oooo1CILrmrTpzy5Sq_MPuGiKM",
     authDomain: "messenger-4a3ab.firebaseapp.com",
@@ -9,7 +9,6 @@ const firebaseConfig = {
     appId: "1:684785124123:web:15efc74d7bb49259b789be"
 };
 
-// ИНИЦИАЛИЗАЦИЯ
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.database();
@@ -25,8 +24,8 @@ let isRecording = false;
 let activeCall = false;
 let localStream = null;
 
-// ========== DOM ЭЛЕМЕНТЫ ==========
-const elements = {
+// ========== DOM ==========
+const el = {
     loginModal: document.getElementById('login-modal'),
     mainContainer: document.getElementById('main-container'),
     messagesContainer: document.getElementById('messages-container'),
@@ -44,49 +43,22 @@ const elements = {
     videoCall: document.getElementById('video-call-container'),
     localVideo: document.getElementById('local-video'),
     voiceBtn: document.getElementById('voice-btn'),
-    chatSearch: document.getElementById('chat-search'),
     notificationContainer: document.getElementById('notification-container'),
-    currentChatAvatar: document.getElementById('current-chat-avatar')
+    currentChatAvatar: document.getElementById('current-chat-avatar'),
+    topicList: document.getElementById('topic-list'),
+    contactsList: document.getElementById('contacts-list'),
+    createTopicBtn: document.getElementById('create-topic-btn'),
+    chatSearch: document.getElementById('chat-search')
 };
-
-// ========== ЗАПРОС РАЗРЕШЕНИЙ ==========
-async function requestPermissions() {
-    try {
-        const stream = await navigator.mediaDevices.getUserMedia({ 
-            video: true, 
-            audio: true 
-        });
-        stream.getTracks().forEach(track => track.stop());
-        console.log('✅ Камера и микрофон разрешены');
-    } catch (error) {
-        console.log('❌ Нет доступа к камере/микрофону:', error);
-    }
-    
-    if ('Notification' in window && Notification.permission === 'default') {
-        await Notification.requestPermission();
-    }
-    
-    if ('serviceWorker' in navigator) {
-        try {
-            await navigator.serviceWorker.register('/sw.js');
-            console.log('✅ Service Worker зарегистрирован');
-        } catch (error) {
-            console.log('❌ Service Worker ошибка:', error);
-        }
-    }
-}
 
 // ========== ИНИЦИАЛИЗАЦИЯ ==========
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('NeoCascade загружен');
-    requestPermissions();
     auth.onAuthStateChanged(handleAuthState);
-    setupEventListeners();
-    setupPresence();
+    setupListeners();
 });
 
 // ========== ОБРАБОТЧИКИ ==========
-function setupEventListeners() {
+function setupListeners() {
     document.getElementById('email-login-btn')?.addEventListener('click', handleEmailLogin);
     document.getElementById('google-login-btn')?.addEventListener('click', handleGoogleLogin);
     document.getElementById('email-register-btn')?.addEventListener('click', handleEmailRegister);
@@ -104,66 +76,60 @@ function setupEventListeners() {
         document.getElementById('login-form').style.display = 'block';
     });
     
-    elements.sendBtn?.addEventListener('click', sendMessage);
-    elements.messageInput?.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') sendMessage();
-    });
+    el.sendBtn?.addEventListener('click', sendMessage);
+    el.messageInput?.addEventListener('keypress', (e) => e.key === 'Enter' && sendMessage());
     
-    elements.voiceBtn?.addEventListener('mousedown', startVoiceRecording);
-    elements.voiceBtn?.addEventListener('mouseup', stopVoiceRecording);
-    elements.voiceBtn?.addEventListener('mouseleave', stopVoiceRecording);
-    elements.voiceBtn?.addEventListener('touchstart', startVoiceRecording);
-    elements.voiceBtn?.addEventListener('touchend', stopVoiceRecording);
+    el.voiceBtn?.addEventListener('mousedown', startVoiceRecording);
+    el.voiceBtn?.addEventListener('mouseup', stopVoiceRecording);
+    el.voiceBtn?.addEventListener('mouseleave', stopVoiceRecording);
+    el.voiceBtn?.addEventListener('touchstart', startVoiceRecording);
+    el.voiceBtn?.addEventListener('touchend', stopVoiceRecording);
     
-    elements.logoutBtn?.addEventListener('click', handleLogout);
-    elements.startCallBtn?.addEventListener('click', startCall);
-    elements.joinCallBtn?.addEventListener('click', joinCall);
+    el.logoutBtn?.addEventListener('click', handleLogout);
+    el.startCallBtn?.addEventListener('click', startCall);
+    el.joinCallBtn?.addEventListener('click', joinCall);
     document.getElementById('end-call')?.addEventListener('click', endCall);
     document.getElementById('toggle-video')?.addEventListener('click', toggleVideo);
     document.getElementById('toggle-audio')?.addEventListener('click', toggleAudio);
     
-    elements.chatList?.addEventListener('click', (e) => {
-        const chatItem = e.target.closest('.chat-item');
-        if (chatItem?.dataset.chat) selectChat(chatItem.dataset.chat);
-    });
+    el.createTopicBtn?.addEventListener('click', createTopic);
+    el.chatSearch?.addEventListener('input', filterChats);
     
-    elements.chatSearch?.addEventListener('input', filterChats);
     setupMobileMenu();
 }
 
-// ========== GOOGLE ВХОД С ЗАПРОСОМ НИКА ==========
+// ========== GOOGLE ВХОД С НИКОМ ==========
 async function handleGoogleLogin() {
     const btn = document.getElementById('google-login-btn');
     const original = btn.innerHTML;
     
     try {
         btn.disabled = true;
-        btn.innerHTML = '<div class="loading"></div>';
+        btn.innerHTML = '⏳';
         
         const result = await auth.signInWithPopup(googleProvider);
         const user = result.user;
         
-        // Проверяем, есть ли ник в базе
         const snapshot = await db.ref(`users/${user.uid}/nickname`).once('value');
         
         if (!snapshot.exists()) {
-            // Запрашиваем ник
-            const nickname = prompt('Введите ваш никнейм для отображения в чате:', user.displayName || 'Пользователь');
+            const nickname = prompt('👋 Введите ваш никнейм:', user.displayName || user.email.split('@')[0]);
+            const finalName = nickname?.trim() || user.email.split('@')[0];
             
-            if (nickname && nickname.trim()) {
-                await user.updateProfile({ displayName: nickname.trim() });
-                await db.ref(`users/${user.uid}`).update({
-                    name: nickname.trim(),
-                    nickname: nickname.trim(),
-                    email: user.email,
-                    photoURL: user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(nickname.trim())}&background=3b82f6&color=fff`
-                });
-            }
+            await user.updateProfile({ displayName: finalName });
+            await db.ref(`users/${user.uid}`).set({
+                uid: user.uid,
+                name: finalName,
+                nickname: finalName,
+                email: user.email,
+                online: true,
+                lastSeen: Date.now(),
+                photoURL: `https://ui-avatars.com/api/?name=${encodeURIComponent(finalName)}&background=3b82f6&color=fff`,
+                createdAt: Date.now()
+            });
         }
-        
     } catch (error) {
-        console.error('Google ошибка:', error);
-        showNotification('Ошибка входа через Google', 'error');
+        showNotification('❌ Ошибка входа через Google', 'error');
         btn.disabled = false;
         btn.innerHTML = original;
     }
@@ -171,49 +137,39 @@ async function handleGoogleLogin() {
 
 // ========== EMAIL РЕГИСТРАЦИЯ ==========
 async function handleEmailRegister() {
-    const name = document.getElementById('register-name').value;
-    const email = document.getElementById('register-email').value;
+    const name = document.getElementById('register-name').value.trim();
+    const email = document.getElementById('register-email').value.trim();
     const pass = document.getElementById('register-password').value;
     
-    if (!name || !email || !pass) {
-        showNotification('Заполните все поля', 'error');
-        return;
-    }
-    
-    if (pass.length < 6) {
-        showNotification('Пароль должен быть от 6 символов', 'error');
-        return;
-    }
+    if (!name || !email || !pass) return showNotification('❌ Заполните все поля', 'error');
+    if (pass.length < 6) return showNotification('❌ Пароль от 6 символов', 'error');
     
     const btn = document.getElementById('email-register-btn');
     const original = btn.innerHTML;
     
     try {
         btn.disabled = true;
-        btn.innerHTML = '<div class="loading"></div>';
+        btn.innerHTML = '⏳';
         
         const result = await auth.createUserWithEmailAndPassword(email, pass);
         await result.user.updateProfile({ displayName: name });
         
         await db.ref(`users/${result.user.uid}`).set({
+            uid: result.user.uid,
             name: name,
             nickname: name,
             email: email,
             online: true,
             lastSeen: Date.now(),
-            photoURL: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=3b82f6&color=fff`
+            photoURL: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=3b82f6&color=fff`,
+            createdAt: Date.now()
         });
         
-        showNotification('Регистрация успешна!', 'success');
+        showNotification('✅ Регистрация успешна!', 'success');
         document.getElementById('register-form').style.display = 'none';
         document.getElementById('login-form').style.display = 'block';
-        
     } catch (error) {
-        if (error.code === 'auth/email-already-in-use') {
-            showNotification('Email уже используется', 'error');
-        } else {
-            showNotification('Ошибка регистрации', 'error');
-        }
+        showNotification('❌ Ошибка регистрации', 'error');
         btn.disabled = false;
         btn.innerHTML = original;
     }
@@ -221,36 +177,32 @@ async function handleEmailRegister() {
 
 // ========== EMAIL ВХОД ==========
 async function handleEmailLogin() {
-    const email = document.getElementById('login-email').value;
+    const email = document.getElementById('login-email').value.trim();
     const pass = document.getElementById('login-password').value;
-    
-    if (!email || !pass) {
-        showNotification('Введите email и пароль', 'error');
-        return;
-    }
+    if (!email || !pass) return showNotification('❌ Введите email и пароль', 'error');
     
     const btn = document.getElementById('email-login-btn');
     const original = btn.innerHTML;
     
     try {
         btn.disabled = true;
-        btn.innerHTML = '<div class="loading"></div>';
+        btn.innerHTML = '⏳';
         await auth.signInWithEmailAndPassword(email, pass);
     } catch (error) {
-        showNotification('Неверный email или пароль', 'error');
+        showNotification('❌ Неверный email или пароль', 'error');
         btn.disabled = false;
         btn.innerHTML = original;
     }
 }
 
-// ========== АДМИН ВХОД ==========
+// ========== АДМИН ==========
 async function handleAdminLogin() {
     const btn = document.getElementById('admin-login-btn');
     const original = btn.innerHTML;
     
     try {
         btn.disabled = true;
-        btn.innerHTML = '<div class="loading"></div>';
+        btn.innerHTML = '⏳';
         
         try {
             await auth.signInWithEmailAndPassword('admin@ilyasigma.com', 'JojoTop1');
@@ -258,8 +210,8 @@ async function handleAdminLogin() {
             if (loginError.code === 'auth/user-not-found') {
                 const result = await auth.createUserWithEmailAndPassword('admin@ilyasigma.com', 'JojoTop1');
                 await result.user.updateProfile({ displayName: 'ИльяСигма111' });
-                
                 await db.ref(`users/${result.user.uid}`).set({
+                    uid: result.user.uid,
                     name: 'ИльяСигма111',
                     nickname: 'ИльяСигма111',
                     email: 'admin@ilyasigma.com',
@@ -268,16 +220,11 @@ async function handleAdminLogin() {
                     photoURL: 'https://ui-avatars.com/api/?name=ИльяСигма111&background=10b981&color=fff',
                     isAdmin: true
                 });
-            } else {
-                throw loginError;
-            }
+            } else throw loginError;
         }
-        
-        showNotification('👑 Добро пожаловать, Администратор!', 'success');
-        
+        showNotification('👑 Добро пожаловать, Админ!', 'success');
     } catch (error) {
-        console.error('Админ ошибка:', error);
-        showNotification('Ошибка входа', 'error');
+        showNotification('❌ Ошибка входа', 'error');
         btn.disabled = false;
         btn.innerHTML = original;
     }
@@ -292,27 +239,37 @@ async function handleAuthState(user) {
         const snapshot = await userRef.once('value');
         
         if (!snapshot.exists()) {
+            const nickname = user.displayName || user.email.split('@')[0];
             await userRef.set({
-                name: user.displayName || user.email.split('@')[0],
-                nickname: user.displayName || user.email.split('@')[0],
+                uid: user.uid,
+                name: nickname,
+                nickname: nickname,
                 email: user.email,
                 online: true,
                 lastSeen: Date.now(),
-                photoURL: user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.displayName || user.email)}&background=3b82f6&color=fff`
+                photoURL: user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(nickname)}&background=3b82f6&color=fff`,
+                createdAt: Date.now()
             });
         } else {
-            await userRef.update({
-                online: true,
-                lastSeen: Date.now()
-            });
+            await userRef.update({ online: true, lastSeen: Date.now() });
         }
+        
+        // Presence
+        const connectedRef = db.ref('.info/connected');
+        connectedRef.on('value', (snap) => {
+            if (snap.val() === true) {
+                userRef.child('online').set(true);
+                userRef.child('online').onDisconnect().set(false);
+                userRef.child('lastSeen').onDisconnect().set(Date.now());
+            }
+        });
         
         updateUI();
         hideLoginModal();
         loadMessages();
         loadContacts();
-        showNotification(`Привет, ${user.displayName || 'друг'}!`, 'success');
-        
+        loadTopics();
+        showNotification(`👋 Привет, ${user.displayName || 'друг'}!`, 'success');
     } else {
         currentUser = null;
         showLoginModal();
@@ -322,476 +279,313 @@ async function handleAuthState(user) {
 // ========== UI ==========
 function updateUI() {
     if (!currentUser) return;
-    
-    elements.username.textContent = currentUser.displayName || currentUser.email.split('@')[0];
-    elements.userStatus.textContent = 'в сети';
-    elements.userStatus.className = 'online';
-    
-    if (currentUser.photoURL) {
-        elements.userAvatar.innerHTML = `<img src="${currentUser.photoURL}" alt="avatar">`;
-    }
-    
-    elements.messageInput.disabled = false;
-    elements.sendBtn.disabled = false;
-    elements.joinCallBtn.disabled = false;
-    elements.messageInput.placeholder = 'Напишите сообщение...';
+    el.username.textContent = currentUser.displayName || currentUser.email.split('@')[0];
+    el.userStatus.textContent = 'в сети';
+    el.userStatus.className = 'online';
+    if (currentUser.photoURL) el.userAvatar.innerHTML = `<img src="${currentUser.photoURL}">`;
+    el.messageInput.disabled = false;
+    el.sendBtn.disabled = false;
+    el.joinCallBtn.disabled = false;
 }
 
 function showLoginModal() {
-    elements.loginModal.style.display = 'flex';
-    elements.mainContainer.style.display = 'none';
+    el.loginModal.style.display = 'flex';
+    el.mainContainer.style.display = 'none';
 }
 
 function hideLoginModal() {
-    elements.loginModal.style.display = 'none';
-    elements.mainContainer.style.display = 'flex';
+    el.loginModal.style.display = 'none';
+    el.mainContainer.style.display = 'flex';
 }
 
-// ========== ПРИСУТСТВИЕ ==========
-function setupPresence() {
+// ========== ТЕМЫ ==========
+async function createTopic() {
     if (!currentUser) return;
+    const name = prompt('Название темы:');
+    if (!name?.trim()) return;
     
-    const connectedRef = db.ref('.info/connected');
-    const userStatusRef = db.ref(`users/${currentUser.uid}/online`);
-    
-    connectedRef.on('value', (snap) => {
-        if (snap.val() === true) {
-            userStatusRef.set(true);
-            userStatusRef.onDisconnect().set(false);
-            db.ref(`users/${currentUser.uid}/lastSeen`).onDisconnect().set(Date.now());
-        }
+    const id = `topic_${Date.now()}`;
+    await db.ref(`topics/${id}`).set({
+        id, name: name.trim(),
+        createdBy: currentUser.uid,
+        createdByName: currentUser.displayName,
+        createdAt: Date.now()
+    });
+    await db.ref(`chats/${id}`).set({ name: name.trim(), type: 'topic' });
+    showNotification('✅ Тема создана!', 'success');
+    loadTopics();
+}
+
+function loadTopics() {
+    if (!el.topicList || !currentUser) return;
+    db.ref('topics').on('value', (snap) => {
+        const topics = snap.val();
+        let html = '<div style="padding: 8px 16px; color: rgba(255,255,255,0.5); font-size: 12px;">📌 ТЕМЫ</div>';
+        if (topics) Object.entries(topics).forEach(([id, t]) => {
+            html += `<div class="chat-item ${currentChat === id ? 'active' : ''}" data-chat="${id}">
+                <div class="chat-icon" style="background: #8b5cf6;"><i class="fas fa-hashtag"></i></div>
+                <div class="chat-info"><div class="chat-name"># ${t.name}</div></div>
+            </div>`;
+        });
+        el.topicList.innerHTML = html;
+        document.querySelectorAll('.chat-item[data-chat^="topic_"]').forEach(item => {
+            item.addEventListener('click', () => selectChat(item.dataset.chat));
+        });
     });
 }
 
 // ========== КОНТАКТЫ ==========
 function loadContacts() {
-    if (!currentUser) return;
-    
-    db.ref('users').on('value', (snapshot) => {
-        const users = snapshot.val();
-        if (!users) return;
-        
-        const generalChat = document.querySelector('.chat-item[data-chat="general"]');
-        let html = generalChat ? generalChat.outerHTML : '';
-        
-        Object.entries(users).forEach(([id, user]) => {
+    if (!el.contactsList || !currentUser) return;
+    db.ref('users').on('value', (snap) => {
+        const users = snap.val();
+        let html = '<div style="padding: 8px 16px; color: rgba(255,255,255,0.5); font-size: 12px;">👥 КОНТАКТЫ</div>';
+        if (users) Object.entries(users).forEach(([id, u]) => {
             if (id === currentUser.uid) return;
-            
-            const displayName = user.nickname || user.name || 'Пользователь';
-            
-            html += `
-                <div class="chat-item" data-chat="${id}">
-                    <div class="chat-icon">
-                        <img src="${user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=10b981&color=fff`}" alt="avatar">
-                    </div>
-                    <div class="chat-info">
-                        <div class="chat-name">${displayName}</div>
-                        <div class="chat-preview" style="color: ${user.online ? '#10b981' : 'rgba(255,255,255,0.5)'}">
-                            ${user.online ? 'в сети' : 'не в сети'}
-                        </div>
-                    </div>
+            const name = u.nickname || u.name || 'Пользователь';
+            html += `<div class="chat-item ${currentChat === id ? 'active' : ''}" data-chat="${id}">
+                <div class="chat-icon"><img src="${u.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=10b981&color=fff`}"></div>
+                <div class="chat-info">
+                    <div class="chat-name">${name}</div>
+                    <div class="chat-preview ${u.online ? 'online' : 'offline'}">${u.online ? 'в сети' : 'не в сети'}</div>
                 </div>
-            `;
+            </div>`;
         });
-        
-        elements.chatList.innerHTML = html;
+        el.contactsList.innerHTML = html;
+        document.querySelectorAll('.chat-item[data-chat]:not([data-chat^="topic_"]):not([data-chat="general"])').forEach(item => {
+            item.addEventListener('click', () => selectChat(item.dataset.chat));
+        });
     });
 }
 
 // ========== ВЫБОР ЧАТА ==========
 function selectChat(chatId) {
     currentChat = chatId;
-    
-    document.querySelectorAll('.chat-item').forEach(item => {
-        item.classList.remove('active');
-    });
-    
-    const selected = document.querySelector(`.chat-item[data-chat="${chatId}"]`);
-    if (selected) selected.classList.add('active');
+    document.querySelectorAll('.chat-item').forEach(i => i.classList.remove('active'));
+    document.querySelector(`.chat-item[data-chat="${chatId}"]`)?.classList.add('active');
     
     if (chatId === 'general') {
-        elements.chatTitle.textContent = 'Общий чат';
-        elements.chatStatus.innerHTML = '<span class="online">● онлайн</span>';
-        elements.currentChatAvatar.innerHTML = '<i class="fas fa-globe"></i>';
+        el.chatTitle.textContent = '🌐 Общий чат';
+        el.chatStatus.innerHTML = '<span class="online">● онлайн</span>';
+        el.currentChatAvatar.innerHTML = '<i class="fas fa-globe"></i>';
+    } else if (chatId.startsWith('topic_')) {
+        db.ref(`topics/${chatId}`).once('value', (s) => {
+            if (s.val()) {
+                el.chatTitle.textContent = `# ${s.val().name}`;
+                el.chatStatus.innerHTML = '<span class="online">● тема</span>';
+                el.currentChatAvatar.innerHTML = '<i class="fas fa-hashtag" style="color:#8b5cf6;"></i>';
+            }
+        });
     } else {
-        db.ref(`users/${chatId}`).once('value', (snap) => {
-            const user = snap.val();
-            if (user) {
-                const displayName = user.nickname || user.name || 'Пользователь';
-                elements.chatTitle.textContent = displayName;
-                elements.chatStatus.innerHTML = user.online ? 
-                    '<span class="online">● в сети</span>' : 
-                    '<span class="offline">● не в сети</span>';
-                elements.currentChatAvatar.innerHTML = `<img src="${user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=3b82f6&color=fff`}" alt="avatar">`;
+        db.ref(`users/${chatId}`).once('value', (s) => {
+            const u = s.val();
+            if (u) {
+                el.chatTitle.textContent = u.nickname || u.name;
+                el.chatStatus.innerHTML = u.online ? '<span class="online">● в сети</span>' : '<span class="offline">● не в сети</span>';
+                el.currentChatAvatar.innerHTML = `<img src="${u.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.name)}&background=3b82f6&color=fff`}">`;
             }
         });
     }
-    
     loadMessages();
-    
-    if (window.innerWidth <= 768) {
-        document.querySelector('.sidebar')?.classList.remove('open');
-    }
+    if (window.innerWidth <= 768) document.querySelector('.sidebar')?.classList.remove('open');
 }
 
 // ========== СООБЩЕНИЯ ==========
 function loadMessages() {
     if (!currentUser) return;
-    
-    const messagesRef = db.ref(`chats/${currentChat}/messages`).limitToLast(50);
-    
-    messagesRef.off();
-    messagesRef.on('value', (snapshot) => {
-        const data = snapshot.val();
-        elements.messagesContainer.innerHTML = '';
-        
+    db.ref(`chats/${currentChat}/messages`).limitToLast(50).off();
+    db.ref(`chats/${currentChat}/messages`).limitToLast(50).on('value', (snap) => {
+        const data = snap.val();
+        el.messagesContainer.innerHTML = '';
         if (!data) {
-            elements.messagesContainer.innerHTML = `
-                <div class="welcome">
-                    <i class="fas fa-comments"></i>
-                    <h3>Нет сообщений</h3>
-                    <p>Напишите первое сообщение!</p>
-                </div>
-            `;
+            el.messagesContainer.innerHTML = '<div class="welcome"><i class="fas fa-comments"></i><h3>Нет сообщений</h3><p>Напишите первое сообщение!</p></div>';
             return;
         }
-        
-        const messages = Object.values(data).sort((a, b) => a.timestamp - b.timestamp);
-        
-        messages.forEach(msg => {
+        Object.values(data).sort((a,b) => a.timestamp - b.timestamp).forEach(msg => {
             const isSent = msg.senderId === currentUser.uid;
-            const time = new Date(msg.timestamp).toLocaleTimeString('ru', {
-                hour: '2-digit', minute: '2-digit'
-            });
-            
-            const messageEl = document.createElement('div');
-            messageEl.className = `message ${isSent ? 'sent' : 'received'}`;
-            
+            const time = new Date(msg.timestamp).toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' });
+            const sender = msg.senderName || 'Пользователь';
+            const div = document.createElement('div');
+            div.className = `message ${isSent ? 'sent' : 'received'}`;
             if (msg.type === 'voice') {
-                messageEl.innerHTML = `
-                    <div style="display: flex; align-items: center; gap: 12px;">
-                        <button onclick="playAudio('${msg.audioUrl}')" style="background: none; border: none; color: white; cursor: pointer;">
-                            <i class="fas fa-play"></i>
-                        </button>
-                        <span style="color: rgba(255,255,255,0.9);">🎤 Голосовое сообщение</span>
-                        <span style="font-size: 11px; color: rgba(255,255,255,0.5);">${msg.duration || 0} сек</span>
+                div.innerHTML = `<div style="font-size:12px;font-weight:600;margin-bottom:4px;color:${isSent?'white':'#3b82f6'};">${sender}</div>
+                    <div style="display:flex;align-items:center;gap:12px;">
+                        <button onclick="new Audio('${msg.audioUrl}').play()" style="background:rgba(255,255,255,0.1);border:none;color:white;padding:6px 12px;border-radius:20px;"><i class="fas fa-play"></i></button>
+                        <span style="font-size:12px;">🎤 ${msg.duration||0} сек</span>
                     </div>
-                    <div class="message-time">${time}</div>
-                `;
+                    <div class="message-time">${time}</div>`;
             } else {
-                messageEl.innerHTML = `
-                    <div class="message-content">${escapeHtml(msg.text || '')}</div>
-                    <div class="message-time">${time}</div>
-                `;
+                div.innerHTML = `<div style="font-size:12px;font-weight:600;margin-bottom:4px;color:${isSent?'rgba(255,255,255,0.9)':'#3b82f6'};">${sender}</div>
+                    <div class="message-content">${escapeHtml(msg.text||'')}</div>
+                    <div class="message-time">${time}</div>`;
             }
-            
-            elements.messagesContainer.appendChild(messageEl);
+            el.messagesContainer.appendChild(div);
         });
-        
-        elements.messagesContainer.scrollTop = elements.messagesContainer.scrollHeight;
+        el.messagesContainer.scrollTop = el.messagesContainer.scrollHeight;
     });
 }
 
 // ========== ОТПРАВКА ==========
 async function sendMessage() {
-    if (!currentUser || !elements.messageInput.value.trim()) return;
-    
-    const text = elements.messageInput.value.trim();
-    elements.messageInput.value = '';
-    
-    const messagesRef = db.ref(`chats/${currentChat}/messages`).push();
-    
-    await messagesRef.set({
-        text: text,
-        senderId: currentUser.uid,
-        senderName: currentUser.displayName || 'User',
-        timestamp: Date.now(),
-        type: 'text'
+    if (!currentUser || !el.messageInput.value.trim()) return;
+    const text = el.messageInput.value.trim();
+    el.messageInput.value = '';
+    await db.ref(`chats/${currentChat}/messages`).push({
+        text, senderId: currentUser.uid,
+        senderName: currentUser.displayName || 'Пользователь',
+        timestamp: Date.now(), type: 'text'
     });
 }
 
-// ========== ГОЛОСОВЫЕ - ИСПРАВЛЕНО! ==========
+// ========== ГОЛОСОВЫЕ ==========
 async function startVoiceRecording(e) {
     e.preventDefault();
     if (isRecording || !currentUser) return;
-    
     try {
-        const stream = await navigator.mediaDevices.getUserMedia({ 
-            audio: {
-                echoCancellation: true,
-                noiseSuppression: true,
-                sampleRate: 48000,
-                channelCount: 1
-            } 
-        });
-        
-        mediaRecorder = new MediaRecorder(stream, {
-            mimeType: 'audio/webm;codecs=opus'
-        });
-        
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream);
         audioChunks = [];
-        
-        mediaRecorder.ondataavailable = (e) => {
-            if (e.data.size > 0) {
-                audioChunks.push(e.data);
-            }
-        };
-        
+        mediaRecorder.ondataavailable = e => e.data.size && audioChunks.push(e.data);
         mediaRecorder.onstop = async () => {
-            const blob = new Blob(audioChunks, { 
-                type: 'audio/webm;codecs=opus' 
-            });
-            
-            if (blob.size > 0) {
-                await uploadVoiceMessage(blob);
-            }
-            
+            const blob = new Blob(audioChunks, { type: 'audio/webm' });
+            if (blob.size > 1000) await uploadVoice(blob);
             stream.getTracks().forEach(t => t.stop());
         };
-        
-        mediaRecorder.start(1000);
+        mediaRecorder.start();
         isRecording = true;
-        elements.voiceBtn.classList.add('recording');
-        showNotification('🎤 Запись... Отпустите кнопку', 'info');
-        
-        setTimeout(() => {
-            if (isRecording) stopVoiceRecording();
-        }, 30000);
-        
-    } catch (error) {
-        console.error('Microphone error:', error);
-        showNotification('Нет доступа к микрофону', 'error');
-    }
+        el.voiceBtn.classList.add('recording');
+        el.voiceBtn.style.background = '#ef4444';
+        showNotification('🎤 Запись...', 'info');
+        setTimeout(() => isRecording && stopVoiceRecording(), 30000);
+    } catch { showNotification('❌ Нет микрофона', 'error'); }
 }
 
 function stopVoiceRecording() {
-    if (isRecording && mediaRecorder && mediaRecorder.state !== 'inactive') {
+    if (isRecording && mediaRecorder?.state !== 'inactive') {
         mediaRecorder.stop();
         isRecording = false;
-        elements.voiceBtn.classList.remove('recording');
+        el.voiceBtn.classList.remove('recording');
+        el.voiceBtn.style.background = '';
     }
 }
 
-async function uploadVoiceMessage(blob) {
+async function uploadVoice(blob) {
     try {
-        showNotification('⏳ Отправка голосового...', 'info');
-        
+        showNotification('⏳ Отправка...', 'info');
         const filename = `voice_${Date.now()}_${currentUser.uid}.webm`;
-        const storageRef = storage.ref(`voice/${currentChat}/${filename}`);
-        
-        // Простая загрузка без metadata
-        await storageRef.put(blob);
-        const url = await storageRef.getDownloadURL();
-        
-        const msgRef = db.ref(`chats/${currentChat}/messages`).push();
-        await msgRef.set({
-            type: 'voice',
-            audioUrl: url,
+        const ref = storage.ref(`voice/${currentChat}/${filename}`);
+        await ref.put(blob);
+        const url = await ref.getDownloadURL();
+        await db.ref(`chats/${currentChat}/messages`).push({
+            type: 'voice', audioUrl: url,
             senderId: currentUser.uid,
-            senderName: currentUser.displayName || 'User',
+            senderName: currentUser.displayName,
             duration: Math.round(blob.size / 16000),
             timestamp: Date.now()
         });
-        
-        showNotification('✅ Голосовое отправлено!', 'success');
-        
-    } catch (error) {
-        console.error('Voice upload error:', error);
-        showNotification('❌ Ошибка загрузки. Попробуйте еще раз.', 'error');
-    }
+        showNotification('✅ Готово!', 'success');
+    } catch { showNotification('❌ Ошибка', 'error'); }
 }
 
-window.playAudio = (url) => {
-    const audio = new Audio(url);
-    audio.play().catch(e => console.error('Play error:', e));
-};
-
-// ========== ЗВОНКИ - ИСПРАВЛЕНО! ==========
+// ========== ЗВОНКИ ==========
 async function startCall() {
     try {
-        showNotification('⏳ Запрос доступа к камере...', 'info');
-        
-        localStream = await navigator.mediaDevices.getUserMedia({
-            video: {
-                width: { ideal: 640 },
-                height: { ideal: 480 }
-            },
-            audio: {
-                echoCancellation: true,
-                noiseSuppression: true
-            }
-        });
-        
-        elements.localVideo.srcObject = localStream;
-        
+        localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        el.localVideo.srcObject = localStream;
         await db.ref(`calls/${currentChat}`).set({
-            active: true,
-            startedBy: currentUser.uid,
-            startedAt: Date.now(),
-            participants: { [currentUser.uid]: true }
+            active: true, startedBy: currentUser.uid,
+            startedAt: Date.now(), participants: { [currentUser.uid]: true }
         });
-        
-        elements.videoCall.classList.add('active');
+        el.videoCall.classList.add('active');
         activeCall = true;
-        showNotification('📹 Звонок начат!', 'success');
-        
-    } catch (error) {
-        console.error('Call error:', error);
-        showNotification('❌ Нет доступа к камере/микрофону', 'error');
-    }
+        showNotification('📹 Звонок начат', 'success');
+    } catch { showNotification('❌ Нет камеры/микрофона', 'error'); }
 }
 
 async function joinCall() {
     if (activeCall) return;
-    
     try {
-        localStream = await navigator.mediaDevices.getUserMedia({
-            video: true,
-            audio: true
-        });
-        
-        elements.localVideo.srcObject = localStream;
+        localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        el.localVideo.srcObject = localStream;
         await db.ref(`calls/${currentChat}/participants/${currentUser.uid}`).set(true);
-        
-        elements.videoCall.classList.add('active');
+        el.videoCall.classList.add('active');
         activeCall = true;
-        showNotification('✅ Вы присоединились к звонку', 'success');
-        
-    } catch (error) {
-        showNotification('❌ Ошибка подключения', 'error');
-    }
+        showNotification('✅ Присоединились', 'success');
+    } catch { showNotification('❌ Ошибка', 'error'); }
 }
 
 function endCall() {
-    if (localStream) {
-        localStream.getTracks().forEach(track => {
-            track.stop();
-        });
-        localStream = null;
-    }
-    
+    if (localStream) localStream.getTracks().forEach(t => t.stop());
     db.ref(`calls/${currentChat}`).remove();
-    elements.videoCall.classList.remove('active');
+    el.videoCall.classList.remove('active');
     activeCall = false;
     showNotification('📴 Звонок завершен', 'info');
 }
 
 function toggleVideo() {
-    if (localStream) {
-        const track = localStream.getVideoTracks()[0];
-        if (track) {
-            track.enabled = !track.enabled;
-            const btn = document.getElementById('toggle-video');
-            if (btn) {
-                btn.innerHTML = track.enabled ? 
-                    '<i class="fas fa-video"></i>' : 
-                    '<i class="fas fa-video-slash"></i>';
-            }
-        }
+    const track = localStream?.getVideoTracks()[0];
+    if (track) {
+        track.enabled = !track.enabled;
+        document.getElementById('toggle-video').innerHTML = track.enabled ? 
+            '<i class="fas fa-video"></i>' : '<i class="fas fa-video-slash"></i>';
     }
 }
 
 function toggleAudio() {
-    if (localStream) {
-        const track = localStream.getAudioTracks()[0];
-        if (track) {
-            track.enabled = !track.enabled;
-            const btn = document.getElementById('toggle-audio');
-            if (btn) {
-                btn.innerHTML = track.enabled ? 
-                    '<i class="fas fa-microphone"></i>' : 
-                    '<i class="fas fa-microphone-slash"></i>';
-            }
-        }
+    const track = localStream?.getAudioTracks()[0];
+    if (track) {
+        track.enabled = !track.enabled;
+        document.getElementById('toggle-audio').innerHTML = track.enabled ? 
+            '<i class="fas fa-microphone"></i>' : '<i class="fas fa-microphone-slash"></i>';
     }
 }
 
 // ========== ВЫХОД ==========
 async function handleLogout() {
-    if (currentUser) {
-        await db.ref(`users/${currentUser.uid}`).update({
-            online: false,
-            lastSeen: Date.now()
-        });
-    }
-    
+    if (currentUser) await db.ref(`users/${currentUser.uid}`).update({ online: false, lastSeen: Date.now() });
     if (activeCall) endCall();
-    
     await auth.signOut();
     currentUser = null;
     showLoginModal();
-    showNotification('👋 Вы вышли из системы', 'info');
+    showNotification('👋 Пока!', 'info');
 }
 
 // ========== ПОИСК ==========
 function filterChats() {
-    const search = elements.chatSearch.value.toLowerCase();
-    
-    document.querySelectorAll('.chat-item').forEach(item => {
-        const name = item.querySelector('.chat-name')?.textContent.toLowerCase() || '';
-        item.style.display = name.includes(search) ? 'flex' : 'none';
+    const search = el.chatSearch.value.toLowerCase();
+    document.querySelectorAll('.chat-item').forEach(i => {
+        const name = i.querySelector('.chat-name')?.textContent.toLowerCase() || '';
+        i.style.display = name.includes(search) ? 'flex' : 'none';
     });
 }
 
 // ========== МОБИЛЬНОЕ МЕНЮ ==========
 function setupMobileMenu() {
-    let touchStartX = 0;
-    
-    document.addEventListener('touchstart', (e) => {
-        touchStartX = e.touches[0].clientX;
+    let startX = 0;
+    document.addEventListener('touchstart', e => startX = e.touches[0].clientX, { passive: true });
+    document.addEventListener('touchend', e => {
+        const diff = e.changedTouches[0].clientX - startX;
+        if (diff > 50 && window.innerWidth <= 768) document.querySelector('.sidebar')?.classList.add('open');
+        else if (diff < -50 && window.innerWidth <= 768) document.querySelector('.sidebar')?.classList.remove('open');
     }, { passive: true });
-    
-    document.addEventListener('touchend', (e) => {
-        const touchEndX = e.changedTouches[0].clientX;
-        const diff = touchEndX - touchStartX;
-        
-        if (diff > 50 && window.innerWidth <= 768) {
-            document.querySelector('.sidebar')?.classList.add('open');
-        } else if (diff < -50 && window.innerWidth <= 768) {
-            document.querySelector('.sidebar')?.classList.remove('open');
-        }
-    }, { passive: true });
-    
-    document.addEventListener('click', (e) => {
-        if (window.innerWidth <= 768) {
-            if (!e.target.closest('.sidebar') && !e.target.closest('.user-profile')) {
-                document.querySelector('.sidebar')?.classList.remove('open');
-            }
-        }
-    });
 }
 
 // ========== УВЕДОМЛЕНИЯ ==========
-function showNotification(message, type = 'info') {
-    if (!elements.notificationContainer) return;
-    
-    const notification = document.createElement('div');
-    notification.className = 'notification';
-    
-    let icon = '📢';
-    if (type === 'success') icon = '✅';
-    if (type === 'error') icon = '❌';
-    if (type === 'warning') icon = '⚠️';
-    
-    notification.innerHTML = `${icon} ${message}`;
-    
-    if (type === 'error') notification.style.borderLeftColor = '#ef4444';
-    if (type === 'success') notification.style.borderLeftColor = '#10b981';
-    if (type === 'info') notification.style.borderLeftColor = '#3b82f6';
-    
-    elements.notificationContainer.appendChild(notification);
-    
-    setTimeout(() => {
-        notification.remove();
-    }, 3000);
+function showNotification(msg, type = 'info') {
+    if (!el.notificationContainer) return;
+    const n = document.createElement('div');
+    n.className = 'notification';
+    n.innerHTML = `${type === 'success' ? '✅' : type === 'error' ? '❌' : '📢'} ${msg}`;
+    n.style.borderLeftColor = type === 'error' ? '#ef4444' : type === 'success' ? '#10b981' : '#3b82f6';
+    el.notificationContainer.appendChild(n);
+    setTimeout(() => n.remove(), 3000);
 }
 
-// ========== ЭКРАНИРОВАНИЕ ==========
-function escapeHtml(text) {
-    if (!text) return '';
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
+function escapeHtml(t) {
+    const d = document.createElement('div');
+    d.textContent = t;
+    return d.innerHTML;
 }
 
-console.log('✅ NeoCascade полностью готов!');
+// ========== ИНИЦИАЛИЗАЦИЯ ПРИ ЗАГРУЗКЕ ==========
+console.log('✅ NeoCascade READY');
