@@ -2,51 +2,66 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>NeoCascade | Квантовый мессенджер</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>NeoCascade | Мессенджер</title>
     
-    <!-- PWA -->
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#00f3ff">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <!-- Яндекс.Метрика -->
+    <script type="text/javascript">
+        (function(m,e,t,r,i,k,a){
+            m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
+            m[i].l=1*new Date();
+            for (var j = 0; j < document.scripts.length; j++) {if (document.scripts[j].src === r) { return; }}
+            k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)
+        })(window, document,'script','https://mc.yandex.ru/metrika/tag.js?id=106798492', 'ym');
+        
+        ym(106798492, 'init', {
+            ssr:true, 
+            webvisor:true, 
+            clickmap:true, 
+            ecommerce:"dataLayer", 
+            referrer: document.referrer, 
+            url: location.href, 
+            accurateTrackBounce:true, 
+            trackLinks:true
+        });
+    </script>
+    <noscript>
+        <div>
+            <img src="https://mc.yandex.ru/watch/106798492" style="position:absolute; left:-9999px;" alt="" />
+        </div>
+    </noscript>
+    <!-- /Яндекс.Метрика -->
     
-    <!-- Fonts & Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <!-- ========== МОДАЛКА ВХОДА ========== -->
-    <div id="login-modal" class="modal">
-        <div class="modal-content glass">
+    <!-- МОДАЛКА ВХОДА -->
+    <div id="login-modal" class="modal" style="display: flex;">
+        <div class="modal-content">
             <div class="modal-header">
-                <div class="quantum-logo">
-                    <i class="fas fa-water"></i>
-                    <i class="fas fa-circle quantum-pulse"></i>
-                </div>
+                <i class="fas fa-water" style="font-size: 48px;"></i>
                 <h2>NeoCascade</h2>
-                <p>Квантовое пространство общения</p>
+                <p>Войди в систему</p>
             </div>
             
             <div class="modal-body">
                 <!-- Форма входа -->
                 <div id="login-form">
                     <div class="form-group">
-                        <input type="email" id="login-email" placeholder="Email" required>
-                        <i class="fas fa-envelope input-icon"></i>
+                        <input type="email" id="login-email" placeholder="Email">
                     </div>
                     
                     <div class="form-group">
-                        <input type="password" id="login-password" placeholder="Пароль" required>
-                        <i class="fas fa-lock input-icon"></i>
+                        <input type="password" id="login-password" placeholder="Пароль">
                     </div>
                     
                     <button class="btn btn-primary" id="email-login-btn">
                         <i class="fas fa-sign-in-alt"></i> Войти
                     </button>
                     
-                    <div class="divider">или</div>
+                    <div style="text-align: center; margin: 16px 0; color: #94A3B8;">или</div>
                     
                     <button class="btn btn-google" id="google-login-btn">
                         <i class="fab fa-google"></i> Войти через Google
@@ -56,165 +71,98 @@
                         <i class="fas fa-crown"></i> Войти как Админ
                     </button>
                     
-                    <p class="switch-form">
-                        Нет аккаунта? <a href="#" id="show-register">Создать</a>
+                    <p style="text-align: center; margin-top: 20px; color: #94A3B8;">
+                        Нет аккаунта? 
+                        <a href="#" id="show-register" style="color: #3B82F6; text-decoration: none;">Создать</a>
                     </p>
                 </div>
                 
-                <!-- Форма регистрации -->
+                <!-- Форма регистрации (скрыта) -->
                 <div id="register-form" style="display: none;">
                     <div class="form-group">
-                        <input type="text" id="register-name" placeholder="Имя пользователя" required>
-                        <i class="fas fa-user input-icon"></i>
+                        <input type="text" id="register-name" placeholder="Имя">
                     </div>
                     
                     <div class="form-group">
-                        <input type="email" id="register-email" placeholder="Email" required>
-                        <i class="fas fa-envelope input-icon"></i>
+                        <input type="email" id="register-email" placeholder="Email">
                     </div>
                     
                     <div class="form-group">
-                        <input type="password" id="register-password" placeholder="Пароль (мин. 6)" required>
-                        <i class="fas fa-lock input-icon"></i>
+                        <input type="password" id="register-password" placeholder="Пароль (мин. 6 символов)">
                     </div>
                     
                     <button class="btn btn-primary" id="email-register-btn">
                         <i class="fas fa-user-plus"></i> Зарегистрироваться
                     </button>
                     
-                    <p class="switch-form">
-                        Уже есть аккаунт? <a href="#" id="show-login">Войти</a>
+                    <p style="text-align: center; margin-top: 20px; color: #94A3B8;">
+                        Уже есть аккаунт? 
+                        <a href="#" id="show-login" style="color: #3B82F6; text-decoration: none;">Войти</a>
                     </p>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- ========== ВИДЕОЗВОНОК ========== -->
-    <div id="video-call-container" class="video-call">
-        <div class="video-grid">
-            <div class="video-wrapper glass">
-                <video id="local-video" autoplay muted playsinline></video>
-                <div class="video-label">Вы</div>
-            </div>
-            <div id="remote-videos"></div>
-        </div>
-        <div class="video-controls glass">
-            <button class="btn-call" id="toggle-video">
-                <i class="fas fa-video"></i>
-            </button>
-            <button class="btn-call" id="toggle-audio">
-                <i class="fas fa-microphone"></i>
-            </button>
-            <button class="btn-call btn-end" id="end-call">
-                <i class="fas fa-phone-slash"></i>
-            </button>
-        </div>
-    </div>
-
-    <!-- ========== ОСНОВНОЙ ИНТЕРФЕЙС ========== -->
-    <div class="container">
-        <!-- ===== САЙДБАР ===== -->
-        <div class="sidebar glass" id="sidebar">
+    <!-- ОСНОВНОЙ ИНТЕРФЕЙС (скрыт) -->
+    <div class="container" id="main-container" style="display: none;">
+        <div class="sidebar">
             <div class="sidebar-header">
-                <div class="app-logo">
-                    <i class="fas fa-water"></i>
-                    <h1>NeoCascade</h1>
-                    <span class="beta-badge">BETA</span>
-                </div>
-                
-                <div style="display: flex; gap: 8px; align-items: center;">
-                    <button class="btn-icon" id="feed-btn" title="Лента активности">
-                        <i class="fas fa-rss"></i>
-                        <span class="notification-badge" id="feed-badge">3</span>
-                    </button>
-                    <button class="btn-icon" id="create-group-btn" title="Создать группу">
-                        <i class="fas fa-plus-circle"></i>
-                    </button>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <i class="fas fa-water" style="color: #3B82F6; font-size: 24px;"></i>
+                    <h1 style="font-size: 20px;">NeoCascade</h1>
                 </div>
                 
                 <div class="user-profile">
                     <div class="avatar" id="user-avatar">
                         <i class="fas fa-user"></i>
                     </div>
-                    <div class="user-info">
-                        <span id="username">Гость</span>
-                        <small id="user-status" class="offline">не в сети</small>
+                    <div style="flex: 1;">
+                        <div id="username" style="font-weight: 600;">Гость</div>
+                        <small id="user-status" style="color: #94A3B8;">не в сети</small>
                     </div>
-                    <button class="btn-icon" id="logout-btn" title="Выйти">
+                    <button class="btn-icon" id="logout-btn">
                         <i class="fas fa-sign-out-alt"></i>
                     </button>
                 </div>
             </div>
-
-            <!-- Список чатов -->
-            <div class="chat-search">
-                <i class="fas fa-search"></i>
-                <input type="text" id="chat-search" placeholder="Поиск чатов...">
-            </div>
             
             <div class="chat-list" id="chat-list">
                 <div class="chat-item active" data-chat="general">
-                    <div class="chat-icon" style="background: linear-gradient(135deg, #3B82F6, #1E40AF);">
+                    <div class="chat-icon" style="background: #3B82F6;">
                         <i class="fas fa-globe"></i>
                     </div>
-                    <div class="chat-info">
-                        <div class="chat-name">Общий чат</div>
-                        <div class="chat-preview">Добро пожаловать!</div>
+                    <div style="flex: 1;">
+                        <div style="font-weight: 600;">Общий чат</div>
+                        <div style="font-size: 12px; color: #94A3B8;">Добро пожаловать!</div>
                     </div>
-                    <button class="btn-call-mini" data-chat="general">
-                        <i class="fas fa-phone"></i>
-                    </button>
                 </div>
             </div>
-
-            <!-- Кнопка звонка -->
-            <button class="btn-video" id="start-group-call">
-                <i class="fas fa-video"></i>
-                <span>Начать видеозвонок</span>
-            </button>
         </div>
-
-        <!-- ===== ОБЛАСТЬ ЧАТА ===== -->
+        
         <div class="chat-area">
-            <div class="chat-header glass">
-                <div class="chat-title">
-                    <div class="avatar" id="current-chat-avatar">
+            <div class="chat-header">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div class="avatar" style="background: #3B82F6;">
                         <i class="fas fa-globe"></i>
                     </div>
                     <div>
                         <h3 id="chat-title">Общий чат</h3>
-                        <p id="chat-status">⚡ 127 онлайн</p>
+                        <p id="chat-status" style="font-size: 12px; color: #94A3B8;">онлайн</p>
                     </div>
                 </div>
-                <div class="chat-actions">
-                    <button class="btn-icon" id="join-call-btn" disabled>
-                        <i class="fas fa-video"></i>
-                    </button>
-                    <button class="btn-icon" id="chat-info-btn">
-                        <i class="fas fa-info-circle"></i>
-                    </button>
-                </div>
             </div>
-
-            <!-- Сообщения -->
+            
             <div class="messages" id="messages-container">
-                <div class="welcome">
-                    <div class="welcome-icon">
-                        <i class="fas fa-water"></i>
-                    </div>
-                    <h2>NeoCascade Messenger</h2>
-                    <p>Квантовое пространство для общения</p>
-                    <p class="hint">Войдите, чтобы начать общаться</p>
+                <div style="text-align: center; padding: 40px; color: #94A3B8;">
+                    <i class="fas fa-water" style="font-size: 48px; color: #3B82F6; margin-bottom: 16px;"></i>
+                    <h2 style="color: white; margin-bottom: 8px;">NeoCascade</h2>
+                    <p>Войдите, чтобы начать общение</p>
                 </div>
             </div>
-
-            <!-- Ввод сообщения -->
-            <div class="message-input glass">
-                <button class="btn-voice" id="voice-btn" title="Удерживайте для записи">
-                    <i class="fas fa-microphone"></i>
-                </button>
-                <input type="text" id="message-input" placeholder="Войдите, чтобы отправлять сообщения" disabled>
+            
+            <div class="message-input">
+                <input type="text" id="message-input" placeholder="Введите сообщение..." disabled>
                 <button class="btn-send" id="send-btn" disabled>
                     <i class="fas fa-paper-plane"></i>
                 </button>
@@ -222,101 +170,15 @@
         </div>
     </div>
 
-    <!-- ========== ЛЕНТА АКТИВНОСТИ ========== -->
-    <div class="feed-panel glass" id="feed-panel">
-        <div class="feed-header">
-            <h3><i class="fas fa-rss"></i> Лента активности</h3>
-            <button class="btn-icon" id="close-feed">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-        
-        <div class="feed-filters">
-            <button class="feed-filter active" data-filter="all">🏠 Все</button>
-            <button class="feed-filter" data-filter="trending">🔥 Хит</button>
-            <button class="feed-filter" data-filter="media">📸 Медиа</button>
-            <button class="feed-filter" data-filter="my">👤 Мои</button>
-        </div>
-        
-        <div class="feed-tabs">
-            <button class="feed-tab active" data-tab="latest">🕐 Свежее</button>
-            <button class="feed-tab" data-tab="popular">⭐ Лучшее</button>
-            <button class="feed-tab" data-tab="following">🔔 Подписки</button>
-        </div>
-        
-        <div id="feed-container" class="feed-container">
-            <div class="feed-loading">
-                <div class="quantum-loader"></div>
-                <span>Квантовая загрузка...</span>
-            </div>
-        </div>
-    </div>
+    <!-- УВЕДОМЛЕНИЯ -->
+    <div id="notification-container" style="position: fixed; top: 20px; right: 20px; z-index: 10000;"></div>
 
-    <!-- ========== АДМИН ПАНЕЛЬ ========== -->
-    <div class="admin-panel glass" id="admin-panel">
-        <div class="admin-header">
-            <h3><i class="fas fa-crown" style="color: #FFD700;"></i> Админ панель</h3>
-            <button class="btn-icon" id="close-admin-panel">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-        
-        <div class="admin-section">
-            <h4><i class="fas fa-bullhorn"></i> Отправить объявление</h4>
-            <textarea id="admin-announcement" class="admin-input" placeholder="Текст важного объявления..." rows="3"></textarea>
-            <button class="btn btn-primary" id="send-announcement-btn">
-                <i class="fas fa-paper-plane"></i> Отправить всем
-            </button>
-        </div>
-        
-        <div class="admin-section">
-            <h4><i class="fas fa-users"></i> Пользователи онлайн</h4>
-            <div id="online-users-list" class="online-users-list"></div>
-        </div>
-        
-        <div class="admin-section">
-            <h4><i class="fas fa-chart-bar"></i> Статистика</h4>
-            <div class="stats-grid">
-                <div class="stat-item">
-                    <span class="stat-label">Всего пользователей</span>
-                    <span class="stat-value" id="total-users">0</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-label">Сообщений сегодня</span>
-                    <span class="stat-value" id="messages-today">0</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-label">Активных чатов</span>
-                    <span class="stat-value" id="active-chats">0</span>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Шаблон голосового сообщения -->
-    <template id="voice-message-template">
-        <div class="voice-message">
-            <button class="btn-play">
-                <i class="fas fa-play"></i>
-            </button>
-            <div class="voice-wave"></div>
-            <span class="voice-duration">0:00</span>
-        </div>
-    </template>
-
-    <!-- Service Worker -->
-    <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js')
-                    .then(reg => console.log('SW зарегистрирован:', reg.scope))
-                    .catch(err => console.error('SW ошибка:', err));
-            });
-        }
-    </script>
-
-    <!-- Firebase и приложение -->
-    <script type="module" src="firebase-config.js"></script>
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    
+    <!-- Скрипты -->
     <script type="module" src="script.js"></script>
 </body>
 </html>
