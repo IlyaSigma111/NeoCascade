@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>NeoCascade | Мега-стекло мессенджер</title>
+    <title>NeoCascade | Каналы и комментарии</title>
     
     <!-- Метрика -->
     <script>
@@ -11,7 +11,7 @@
         m[i].l=1*new Date();
         for (var j = 0; j < document.scripts.length; j++) {if (document.scripts[j].src === r) { return; }}
         k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)})
-        (window, document,'script','https://mc.yandex.ru/metrika/tag.js?id=106798492', 'ym');
+        (window, document,'script','https://mc.yandex.ru/metrika/tag.js','ym');
         ym(106798492, 'init', {ssr:true, webvisor:true, clickmap:true, trackLinks:true});
     </script>
     
@@ -21,7 +21,8 @@
     
     <!-- PWA -->
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#8b5cf6">
+    <meta name="theme-color" content="#a78bfa">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     
@@ -102,7 +103,7 @@
                     </div>
                     <div class="user-info">
                         <div id="username">Гость</div>
-                        <small id="user-status" class="offline"><i class="fas fa-circle"></i> не в сети</small>
+                        <small id="user-status"><i class="fas fa-circle"></i> не в сети</small>
                     </div>
                     <button class="btn-icon" id="logout-btn" title="Выйти">
                         <i class="fas fa-sign-out-alt"></i>
@@ -112,7 +113,18 @@
             
             <div class="chat-search">
                 <i class="fas fa-search"></i>
-                <input type="text" id="chat-search" placeholder="Поиск чатов и тем...">
+                <input type="text" id="chat-search" placeholder="Поиск каналов и чатов...">
+            </div>
+            
+            <!-- КАНАЛЫ (НОВОЕ) -->
+            <div id="channels-section" class="channels-section">
+                <div class="section-header" id="channels-header">
+                    <h4><i class="fas fa-broadcast-tower"></i> КАНАЛЫ</h4>
+                    <button class="btn-icon-small" id="create-channel-btn" title="Создать канал">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+                <div id="channels-list" class="channels-list"></div>
             </div>
             
             <!-- ТЕМЫ -->
@@ -122,6 +134,9 @@
             <button id="create-topic-btn">
                 <i class="fas fa-plus-circle"></i> Создать тему
             </button>
+            
+            <!-- ГОЛОСОВЫЕ КАНАЛЫ (Яндекс Телемост) -->
+            <div id="voice-channels" class="voice-channels" style="padding: 8px 0;"></div>
             
             <!-- КОНТАКТЫ -->
             <div id="contacts-list" style="padding: 8px 0;"></div>
@@ -168,6 +183,33 @@
                     <i class="fas fa-water"></i>
                     <h3>NeoCascade</h3>
                     <p>Войдите чтобы начать общение</p>
+                </div>
+            </div>
+            
+            <!-- ПАНЕЛЬ РЕАКЦИЙ (НОВОЕ) -->
+            <div id="reaction-panel" class="reaction-panel" style="display: none;">
+                <button class="reaction-btn" data-emoji="👍">👍</button>
+                <button class="reaction-btn" data-emoji="❤️">❤️</button>
+                <button class="reaction-btn" data-emoji="😂">😂</button>
+                <button class="reaction-btn" data-emoji="😮">😮</button>
+                <button class="reaction-btn" data-emoji="😢">😢</button>
+                <button class="reaction-btn" data-emoji="👎">👎</button>
+            </div>
+            
+            <!-- КОММЕНТАРИИ (НОВОЕ) -->
+            <div id="comments-section" class="comments-section" style="display: none;">
+                <div class="comments-header">
+                    <h4><i class="fas fa-comments"></i> Комментарии</h4>
+                    <button class="btn-icon-small" id="close-comments">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div id="comments-list" class="comments-list"></div>
+                <div class="comment-input-wrapper">
+                    <input type="text" id="comment-input" placeholder="Написать комментарий...">
+                    <button class="btn-send-comment" id="send-comment-btn">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
                 </div>
             </div>
             
