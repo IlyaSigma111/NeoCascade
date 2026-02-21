@@ -1,4 +1,16 @@
-/* ========== NEO CASCADE - ЧИСТЫЙ ГЛАСС ========== */
+/* ========== NEO CASCADE - MEGA GLASSMORPHISM ========== */
+:root {
+    --glass-bg: rgba(255, 255, 255, 0.05);
+    --glass-border: rgba(255, 255, 255, 0.1);
+    --glass-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    --primary: #8b5cf6;
+    --primary-glow: rgba(139, 92, 246, 0.5);
+    --secondary: #3b82f6;
+    --success: #10b981;
+    --danger: #ef4444;
+    --warning: #f59e0b;
+    --dark: #0f0f1a;
+}
 
 * {
     margin: 0;
@@ -8,24 +20,51 @@
 
 body {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-    background: linear-gradient(135deg, #0f172a, #1e293b);
+    background: radial-gradient(circle at 30% 30%, #1e1b4b, #0f0f1a);
     color: white;
     height: 100vh;
     overflow: hidden;
+    position: relative;
 }
 
-/* ===== ГЛАССМОРФИЗМ ===== */
-.modal-content,
-.sidebar,
-.chat-header,
-.message-input,
-.video-controls,
-.notification {
-    background: rgba(15, 25, 35, 0.25);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+/* Анимированный фон */
+body::before {
+    content: '';
+    position: fixed;
+    width: 100%;
+    height: 100%;
+    background: 
+        radial-gradient(circle at 20% 30%, rgba(139, 92, 246, 0.15) 0%, transparent 50%),
+        radial-gradient(circle at 80% 70%, rgba(59, 130, 246, 0.15) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: -1;
+}
+
+/* ===== MEGA GLASS ===== */
+.glass-mega {
+    background: rgba(20, 20, 35, 0.2);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 
+        0 25px 50px -12px rgba(0, 0, 0, 0.5),
+        inset 0 1px 1px rgba(255, 255, 255, 0.1);
+}
+
+.glass-card {
+    background: linear-gradient(
+        135deg,
+        rgba(255, 255, 255, 0.1),
+        rgba(255, 255, 255, 0.05)
+    );
+    backdrop-filter: blur(16px) saturate(180%);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 
+        0 8px 32px 0 rgba(0, 0, 0, 0.3),
+        inset 0 1px 1px rgba(255, 255, 255, 0.1);
 }
 
 /* ===== МОДАЛКА ===== */
@@ -35,119 +74,219 @@ body {
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(3, 7, 18, 0.7);
-    backdrop-filter: blur(16px);
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(30px) saturate(180%);
     display: flex;
     align-items: center;
     justify-content: center;
     z-index: 9999;
+    animation: fadeIn 0.3s ease;
 }
 
 .modal-content {
     width: 90%;
-    max-width: 400px;
-    border-radius: 24px;
+    max-width: 420px;
+    background: rgba(20, 20, 35, 0.3);
+    backdrop-filter: blur(40px) saturate(200%);
+    -webkit-backdrop-filter: blur(40px) saturate(200%);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 32px;
+    box-shadow: 
+        0 50px 100px -20px rgba(0, 0, 0, 0.5),
+        0 0 0 1px rgba(255, 255, 255, 0.05) inset;
     overflow: hidden;
+    animation: slideUp 0.4s ease;
 }
 
 .modal-header {
-    padding: 32px 24px;
+    padding: 40px 32px 24px;
     text-align: center;
-    background: rgba(59, 130, 246, 0.1);
-    border-bottom: 1px solid rgba(255,255,255,0.05);
+    background: linear-gradient(
+        180deg,
+        rgba(139, 92, 246, 0.2) 0%,
+        transparent 100%
+    );
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .modal-header i {
-    font-size: 48px;
-    color: #3b82f6;
+    font-size: 64px;
+    color: var(--primary);
     margin-bottom: 16px;
+    filter: drop-shadow(0 0 20px var(--primary-glow));
+    animation: float 3s ease-in-out infinite;
 }
 
 .modal-header h2 {
-    font-size: 28px;
+    font-size: 32px;
+    font-weight: 700;
+    background: linear-gradient(135deg, #fff, #c7d2fe);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
     margin-bottom: 8px;
 }
 
-.modal-body {
-    padding: 32px 24px;
+.modal-header p {
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 14px;
 }
 
-.modal-body input {
-    width: 100%;
-    padding: 14px 16px;
+.modal-body {
+    padding: 32px;
+}
+
+/* ===== GLASS INPUTS ===== */
+.form-group {
+    position: relative;
     margin-bottom: 16px;
-    background: rgba(255,255,255,0.05);
-    border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 12px;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 16px 20px 16px 48px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
     color: white;
     font-size: 15px;
     outline: none;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
 }
 
-.modal-body input:focus {
-    border-color: #3b82f6;
-    background: rgba(59,130,246,0.1);
+.form-group input:focus {
+    border-color: var(--primary);
+    background: rgba(139, 92, 246, 0.1);
+    box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.1);
 }
 
+.form-group input::placeholder {
+    color: rgba(255, 255, 255, 0.3);
+}
+
+.input-icon {
+    position: absolute;
+    left: 18px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: rgba(255, 255, 255, 0.3);
+    font-size: 16px;
+    transition: all 0.3s ease;
+}
+
+.form-group:focus-within .input-icon {
+    color: var(--primary);
+}
+
+/* ===== GLASS BUTTONS ===== */
 .btn {
     width: 100%;
-    padding: 14px;
-    background: #3b82f6;
+    padding: 16px;
     border: none;
-    border-radius: 12px;
-    color: white;
+    border-radius: 20px;
     font-size: 15px;
     font-weight: 600;
     cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
     margin-bottom: 12px;
 }
 
-.btn.google {
-    background: white;
-    color: #0f172a;
-}
-
-.btn.admin {
-    background: #10b981;
-}
-
-.divider {
-    text-align: center;
-    margin: 16px 0;
-    color: rgba(255,255,255,0.5);
-    position: relative;
-}
-
-.divider::before,
-.divider::after {
+.btn::before {
     content: '';
     position: absolute;
-    top: 50%;
-    width: calc(50% - 40px);
-    height: 1px;
-    background: rgba(255,255,255,0.1);
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(255, 255, 255, 0.1),
+        transparent
+    );
+    transition: left 0.5s ease;
 }
 
-.divider::before { left: 0; }
-.divider::after { right: 0; }
+.btn:hover::before {
+    left: 100%;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    color: white;
+    box-shadow: 0 10px 20px -5px rgba(139, 92, 246, 0.3);
+}
+
+.btn-google {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: white;
+}
+
+.btn-admin {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+}
+
+.btn-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(10px);
+    color: rgba(255, 255, 255, 0.7);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-icon:hover {
+    background: var(--primary);
+    color: white;
+    transform: scale(1.1);
+    box-shadow: 0 0 20px var(--primary-glow);
+}
 
 /* ===== ОСНОВНОЙ ИНТЕРФЕЙС ===== */
 .container {
     display: flex;
     height: 100vh;
     width: 100%;
+    padding: 8px;
+    gap: 8px;
+    background: transparent;
 }
 
+/* ===== САЙДБАР ===== */
 .sidebar {
-    width: 300px;
+    width: 320px;
+    background: rgba(20, 20, 35, 0.2);
+    backdrop-filter: blur(30px) saturate(200%);
+    -webkit-backdrop-filter: blur(30px) saturate(200%);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 32px;
     display: flex;
     flex-direction: column;
-    border-right: 1px solid rgba(255,255,255,0.05);
+    overflow: hidden;
+    box-shadow: 
+        0 25px 50px -12px rgba(0, 0, 0, 0.5),
+        inset 0 1px 1px rgba(255, 255, 255, 0.1);
 }
 
 .sidebar-header {
     padding: 20px;
-    border-bottom: 1px solid rgba(255,255,255,0.05);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .logo {
@@ -158,28 +297,43 @@ body {
 }
 
 .logo i {
-    font-size: 24px;
-    color: #3b82f6;
+    font-size: 28px;
+    color: var(--primary);
+    filter: drop-shadow(0 0 10px var(--primary-glow));
+    animation: float 3s ease-in-out infinite;
 }
 
+.logo h2 {
+    font-size: 20px;
+    font-weight: 700;
+    background: linear-gradient(135deg, #fff, #c7d2fe);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+/* ===== ПРОФИЛЬ ===== */
 .user-profile {
     display: flex;
     align-items: center;
     gap: 12px;
     padding: 8px;
-    background: rgba(255,255,255,0.03);
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
     border-radius: 50px;
+    backdrop-filter: blur(10px);
 }
 
 .avatar {
-    width: 44px;
-    height: 44px;
+    width: 48px;
+    height: 48px;
     border-radius: 50%;
-    background: #3b82f6;
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
     display: flex;
     align-items: center;
     justify-content: center;
     overflow: hidden;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 0 20px rgba(139, 92, 246, 0.3);
 }
 
 .avatar img {
@@ -195,32 +349,54 @@ body {
 .user-info #username {
     font-weight: 600;
     margin-bottom: 2px;
+    font-size: 14px;
 }
 
 .user-info small {
-    font-size: 12px;
-    color: rgba(255,255,255,0.5);
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.5);
+    display: flex;
+    align-items: center;
+    gap: 4px;
 }
 
-.btn-icon {
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    border: 1px solid rgba(255,255,255,0.1);
-    background: transparent;
-    color: rgba(255,255,255,0.7);
-    cursor: pointer;
+/* ===== ПОИСК ===== */
+.chat-search {
+    padding: 12px 16px;
+    position: relative;
 }
 
-.btn-icon:hover {
-    background: #3b82f6;
+.chat-search i {
+    position: absolute;
+    left: 28px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: rgba(255, 255, 255, 0.3);
+    font-size: 14px;
+}
+
+.chat-search input {
+    width: 100%;
+    padding: 12px 16px 12px 44px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 30px;
     color: white;
+    font-size: 14px;
+    outline: none;
+    backdrop-filter: blur(10px);
 }
 
+.chat-search input:focus {
+    border-color: var(--primary);
+    background: rgba(139, 92, 246, 0.1);
+}
+
+/* ===== СПИСОК ЧАТОВ ===== */
 .chat-list {
     flex: 1;
     overflow-y: auto;
-    padding: 16px;
+    padding: 8px;
 }
 
 .chat-item {
@@ -228,179 +404,285 @@ body {
     align-items: center;
     gap: 12px;
     padding: 12px;
-    border-radius: 12px;
+    border-radius: 20px;
     cursor: pointer;
     margin-bottom: 4px;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
 }
 
-.chat-item:hover {
-    background: rgba(255,255,255,0.05);
+.chat-item::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.05));
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.chat-item:hover::before {
+    opacity: 1;
 }
 
 .chat-item.active {
-    background: rgba(59,130,246,0.15);
-    border-left: 3px solid #3b82f6;
+    background: rgba(139, 92, 246, 0.15);
+    border-left: 4px solid var(--primary);
+    box-shadow: 0 0 30px rgba(139, 92, 246, 0.2);
 }
 
 .chat-icon {
-    width: 44px;
-    height: 44px;
-    border-radius: 12px;
+    width: 48px;
+    height: 48px;
+    border-radius: 20px;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: #3b82f6;
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
     color: white;
+    box-shadow: 0 10px 20px -5px rgba(139, 92, 246, 0.3);
+    position: relative;
+    z-index: 1;
+}
+
+.chat-icon.general {
+    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
 }
 
 .chat-info {
     flex: 1;
+    position: relative;
+    z-index: 1;
 }
 
 .chat-name {
     font-weight: 600;
     margin-bottom: 4px;
+    font-size: 14px;
 }
 
 .chat-preview {
     font-size: 12px;
-    color: rgba(255,255,255,0.5);
+    color: rgba(255, 255, 255, 0.5);
+    display: flex;
+    align-items: center;
+    gap: 4px;
 }
 
-.btn-video {
-    margin: 16px;
+/* ===== КНОПКА СОЗДАНИЯ ТЕМЫ ===== */
+#create-topic-btn {
+    margin: 8px 16px;
     padding: 12px;
-    background: #10b981;
-    border: none;
-    border-radius: 12px;
+    background: rgba(139, 92, 246, 0.15);
+    border: 1px solid rgba(139, 92, 246, 0.3);
+    border-radius: 30px;
     color: white;
-    font-weight: 600;
+    font-size: 13px;
+    font-weight: 500;
     cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    backdrop-filter: blur(10px);
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
 }
 
-/* ===== ЧАТ ===== */
+#create-topic-btn:hover {
+    background: rgba(139, 92, 246, 0.3);
+    border-color: var(--primary);
+    box-shadow: 0 0 30px rgba(139, 92, 246, 0.3);
+    transform: translateY(-2px);
+}
+
+/* ===== ОБЛАСТЬ ЧАТА ===== */
 .chat-area {
     flex: 1;
+    background: rgba(20, 20, 35, 0.2);
+    backdrop-filter: blur(30px) saturate(200%);
+    -webkit-backdrop-filter: blur(30px) saturate(200%);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 32px;
     display: flex;
     flex-direction: column;
-    background: rgba(15,23,42,0.2);
-    backdrop-filter: blur(12px);
+    overflow: hidden;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
 }
 
 .chat-header {
-    padding: 16px 20px;
+    padding: 20px 24px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    border-bottom: 1px solid rgba(255,255,255,0.05);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    background: rgba(20, 20, 35, 0.1);
+    backdrop-filter: blur(20px);
 }
 
 .chat-title {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 16px;
 }
 
 .chat-title h3 {
     font-size: 18px;
+    font-weight: 600;
     margin-bottom: 4px;
+    background: linear-gradient(135deg, #fff, #e2e8f0);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
 }
 
 .chat-title p {
     font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
 }
 
 .online {
-    color: #10b981 !important;
+    color: var(--success) !important;
 }
+
 .online::before {
     content: '●';
     margin-right: 4px;
+    animation: pulse 2s infinite;
 }
 
+/* ===== СООБЩЕНИЯ ===== */
 .messages {
     flex: 1;
     overflow-y: auto;
-    padding: 20px;
+    padding: 24px;
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 16px;
+    background: rgba(0, 0, 0, 0.1);
 }
 
 .message {
     max-width: 70%;
-    padding: 12px 16px;
-    border-radius: 18px;
+    padding: 14px 18px;
+    border-radius: 28px;
     position: relative;
+    animation: messageIn 0.3s ease;
+    backdrop-filter: blur(10px);
+}
+
+@keyframes messageIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .message.sent {
     align-self: flex-end;
-    background: rgba(59,130,246,0.2);
-    border: 1px solid rgba(59,130,246,0.3);
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(59, 130, 246, 0.2));
+    border: 1px solid rgba(139, 92, 246, 0.3);
+    border-bottom-right-radius: 8px;
 }
 
 .message.received {
     align-self: flex-start;
-    background: rgba(255,255,255,0.03);
-    border: 1px solid rgba(255,255,255,0.05);
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-bottom-left-radius: 8px;
+}
+
+.message-content {
+    word-wrap: break-word;
+    line-height: 1.5;
+    font-size: 14px;
 }
 
 .message-time {
     font-size: 10px;
-    color: rgba(255,255,255,0.5);
+    color: rgba(255, 255, 255, 0.4);
     margin-top: 4px;
     text-align: right;
 }
 
+/* ===== ВВОД СООБЩЕНИЯ ===== */
 .message-input {
-    padding: 16px 20px;
+    padding: 20px 24px;
     display: flex;
     gap: 12px;
     align-items: center;
-    border-top: 1px solid rgba(255,255,255,0.05);
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    background: rgba(20, 20, 35, 0.1);
+    backdrop-filter: blur(20px);
 }
 
 #message-input {
     flex: 1;
-    padding: 12px 16px;
-    background: rgba(255,255,255,0.03);
-    border: 1px solid rgba(255,255,255,0.05);
-    border-radius: 24px;
+    padding: 16px 20px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 40px;
     color: white;
+    font-size: 14px;
     outline: none;
+    backdrop-filter: blur(10px);
+    transition: all 0.3s ease;
 }
 
 #message-input:focus {
-    border-color: #3b82f6;
+    border-color: var(--primary);
+    background: rgba(139, 92, 246, 0.1);
+    box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.1);
 }
 
-.btn-voice,
-.btn-send {
-    width: 44px;
-    height: 44px;
+.btn-voice, .btn-send {
+    width: 52px;
+    height: 52px;
     border-radius: 50%;
     border: none;
-    background: #3b82f6;
-    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 18px;
+}
+
+.btn-send {
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    color: white;
+    box-shadow: 0 10px 20px -5px rgba(139, 92, 246, 0.3);
+}
+
+.btn-send:hover {
+    transform: scale(1.1) rotate(15deg);
+    box-shadow: 0 0 30px var(--primary-glow);
 }
 
 .btn-voice {
-    background: transparent;
-    border: 1px solid rgba(255,255,255,0.1);
-    color: rgba(255,255,255,0.7);
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(10px);
+}
+
+.btn-voice:hover {
+    background: var(--primary);
+    color: white;
+    transform: scale(1.1);
 }
 
 .btn-voice.recording {
-    background: #ef4444;
+    background: var(--danger);
     color: white;
     animation: pulse 1s infinite;
-}
-
-@keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.7; }
+    border-color: transparent;
 }
 
 /* ===== ВИДЕОЗВОНОК ===== */
@@ -410,8 +692,8 @@ body {
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0,0,0,0.9);
-    backdrop-filter: blur(20px);
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(40px) saturate(200%);
     display: none;
     flex-direction: column;
     z-index: 10000;
@@ -419,22 +701,25 @@ body {
 
 .video-call.active {
     display: flex;
+    animation: fadeIn 0.3s ease;
 }
 
 .video-grid {
     flex: 1;
     display: grid;
     place-items: center;
-    padding: 20px;
+    padding: 24px;
 }
 
 .video-wrapper {
     position: relative;
     width: 100%;
-    max-width: 640px;
-    border-radius: 16px;
+    max-width: 800px;
+    border-radius: 32px;
     overflow: hidden;
     background: #000;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 50px 100px -20px rgba(0, 0, 0, 0.5);
 }
 
 .video-wrapper video {
@@ -443,49 +728,85 @@ body {
     object-fit: cover;
 }
 
+.video-label {
+    position: absolute;
+    bottom: 16px;
+    left: 16px;
+    padding: 8px 16px;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(10px);
+    border-radius: 40px;
+    font-size: 14px;
+    font-weight: 500;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
 .video-controls {
-    padding: 20px;
+    padding: 24px;
     display: flex;
     justify-content: center;
-    gap: 16px;
+    gap: 20px;
+    background: linear-gradient(0deg, rgba(0,0,0,0.5), transparent);
 }
 
 .btn-call {
-    width: 52px;
-    height: 52px;
+    width: 64px;
+    height: 64px;
     border-radius: 50%;
     border: none;
-    background: rgba(255,255,255,0.1);
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
     color: white;
-    font-size: 18px;
+    font-size: 24px;
     cursor: pointer;
+    transition: all 0.3s ease;
+    border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .btn-call:hover {
-    background: #3b82f6;
+    background: var(--primary);
+    transform: scale(1.1) translateY(-5px);
+    box-shadow: 0 20px 30px -10px var(--primary-glow);
 }
 
-.btn-end {
-    background: #ef4444 !important;
+.btn-call.btn-end {
+    background: var(--danger);
+}
+
+.btn-call.btn-end:hover {
+    background: #dc2626;
+    box-shadow: 0 20px 30px -10px rgba(239, 68, 68, 0.5);
 }
 
 /* ===== УВЕДОМЛЕНИЯ ===== */
 #notification-container {
     position: fixed;
-    top: 20px;
-    right: 20px;
+    top: 24px;
+    right: 24px;
     z-index: 10001;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
 }
 
 .notification {
-    padding: 12px 20px;
-    border-radius: 12px;
-    margin-bottom: 8px;
-    border-left: 4px solid #3b82f6;
-    animation: slideIn 0.3s ease;
+    padding: 16px 24px;
+    background: rgba(20, 20, 35, 0.3);
+    backdrop-filter: blur(40px) saturate(200%);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-left: 4px solid var(--primary);
+    border-radius: 20px;
+    color: white;
+    font-size: 14px;
+    font-weight: 500;
+    box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5);
+    animation: notificationIn 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 12px;
 }
 
-@keyframes slideIn {
+@keyframes notificationIn {
     from {
         transform: translateX(100%);
         opacity: 0;
@@ -496,9 +817,31 @@ body {
     }
 }
 
-/* ===== СТАТУСЫ ===== */
-.offline {
-    color: rgba(255,255,255,0.5) !important;
+/* ===== АНИМАЦИИ ===== */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
 }
 
 /* ===== СКРОЛЛ ===== */
@@ -506,22 +849,36 @@ body {
     width: 6px;
 }
 
-::-webkit-scrollbar-thumb {
-    background: rgba(255,255,255,0.2);
-    border-radius: 3px;
+::-webkit-scrollbar-track {
+    background: transparent;
 }
 
-/* ===== АДАПТИВ ===== */
+::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 3px;
+    backdrop-filter: blur(10px);
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+/* ===== МОБИЛЬНАЯ АДАПТАЦИЯ ===== */
 @media (max-width: 768px) {
+    .container {
+        padding: 0;
+    }
+    
     .sidebar {
         position: fixed;
         left: -100%;
         top: 0;
         width: 85%;
         height: 100vh;
+        border-radius: 0 32px 32px 0;
         z-index: 1000;
         transition: left 0.3s ease;
-        background: #0f172a;
+        box-shadow: 0 0 50px rgba(0, 0, 0, 0.5);
     }
     
     .sidebar.open {
@@ -529,10 +886,53 @@ body {
     }
     
     .chat-area {
-        width: 100%;
+        border-radius: 0;
     }
     
     .message {
         max-width: 85%;
+    }
+    
+    .chat-header {
+        padding: 16px;
+    }
+    
+    .message-input {
+        padding: 16px;
+    }
+    
+    .video-wrapper {
+        border-radius: 24px;
+    }
+    
+    .btn-call {
+        width: 56px;
+        height: 56px;
+        font-size: 20px;
+    }
+}
+
+@media (max-width: 480px) {
+    .modal-content {
+        width: 95%;
+        border-radius: 24px;
+    }
+    
+    .modal-header {
+        padding: 32px 20px 20px;
+    }
+    
+    .modal-body {
+        padding: 24px 20px;
+    }
+    
+    .message {
+        max-width: 90%;
+    }
+    
+    .notification {
+        width: calc(100% - 32px);
+        left: 16px;
+        right: 16px;
     }
 }
