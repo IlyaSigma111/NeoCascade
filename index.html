@@ -2,10 +2,10 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NeoCascade | Мессенджер</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>NeoCascade | Мега-стекло мессенджер</title>
     
-    <!-- Яндекс.Метрика -->
+    <!-- Метрика -->
     <script>
         (function(m,e,t,r,i,k,a){m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
         m[i].l=1*new Date();
@@ -15,8 +15,17 @@
         ym(106798492, 'init', {ssr:true, webvisor:true, clickmap:true, trackLinks:true});
     </script>
     
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Шрифты и иконки -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#8b5cf6">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    
+    <!-- Стили -->
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -26,7 +35,7 @@
             <div class="modal-header">
                 <i class="fas fa-water"></i>
                 <h2>NeoCascade</h2>
-                <p>Войдите в систему</p>
+                <p>Войдите в квантовое пространство</p>
             </div>
             <div class="modal-body">
                 <div id="login-form">
@@ -79,6 +88,7 @@
 
     <!-- ОСНОВНОЙ ИНТЕРФЕЙС -->
     <div id="main-container" class="container" style="display: none;">
+        <!-- САЙДБАР -->
         <div class="sidebar">
             <div class="sidebar-header">
                 <div class="logo">
@@ -92,9 +102,9 @@
                     </div>
                     <div class="user-info">
                         <div id="username">Гость</div>
-                        <small id="user-status" class="offline">не в сети</small>
+                        <small id="user-status" class="offline"><i class="fas fa-circle"></i> не в сети</small>
                     </div>
-                    <button class="btn-icon" id="logout-btn">
+                    <button class="btn-icon" id="logout-btn" title="Выйти">
                         <i class="fas fa-sign-out-alt"></i>
                     </button>
                 </div>
@@ -102,33 +112,21 @@
             
             <div class="chat-search">
                 <i class="fas fa-search"></i>
-                <input type="text" id="chat-search" placeholder="Поиск...">
+                <input type="text" id="chat-search" placeholder="Поиск чатов и тем...">
             </div>
             
             <!-- ТЕМЫ -->
             <div id="topic-list" style="padding: 8px 0;"></div>
             
             <!-- КНОПКА СОЗДАНИЯ ТЕМЫ -->
-            <button id="create-topic-btn" style="
-                margin: 8px 16px;
-                padding: 10px;
-                background: rgba(139, 92, 246, 0.2);
-                border: 1px solid rgba(139, 92, 246, 0.3);
-                border-radius: 12px;
-                color: white;
-                font-size: 13px;
-                cursor: pointer;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                gap: 8px;
-            ">
+            <button id="create-topic-btn">
                 <i class="fas fa-plus-circle"></i> Создать тему
             </button>
             
             <!-- КОНТАКТЫ -->
             <div id="contacts-list" style="padding: 8px 0;"></div>
             
+            <!-- ЧАТЫ -->
             <div class="chat-list" id="chat-list">
                 <div class="chat-item active" data-chat="general">
                     <div class="chat-icon general">
@@ -142,10 +140,11 @@
             </div>
             
             <button class="btn-video" id="start-group-call">
-                <i class="fas fa-video"></i> Видеозвонок
+                <i class="fas fa-video"></i> Создать видеозвонок
             </button>
         </div>
         
+        <!-- ОБЛАСТЬ ЧАТА -->
         <div class="chat-area">
             <div class="chat-header">
                 <div class="chat-title">
@@ -154,18 +153,18 @@
                     </div>
                     <div>
                         <h3 id="chat-title">Общий чат</h3>
-                        <p id="chat-status" class="online">в сети</p>
+                        <p id="chat-status" class="online">● в сети</p>
                     </div>
                 </div>
                 <div class="chat-actions">
-                    <button class="btn-icon" id="join-call-btn" disabled>
+                    <button class="btn-icon" id="join-call-btn" title="Присоединиться к звонку" disabled>
                         <i class="fas fa-phone"></i>
                     </button>
                 </div>
             </div>
             
             <div class="messages" id="messages-container">
-                <div class="welcome">
+                <div class="welcome-message">
                     <i class="fas fa-water"></i>
                     <h3>NeoCascade</h3>
                     <p>Войдите чтобы начать общение</p>
@@ -173,7 +172,7 @@
             </div>
             
             <div class="message-input">
-                <button class="btn-voice" id="voice-btn">
+                <button class="btn-voice" id="voice-btn" title="Голосовое сообщение">
                     <i class="fas fa-microphone"></i>
                 </button>
                 <input type="text" id="message-input" placeholder="Введите сообщение..." disabled>
@@ -193,13 +192,13 @@
             </div>
         </div>
         <div class="video-controls">
-            <button class="btn-call" id="toggle-video">
+            <button class="btn-call" id="toggle-video" title="Включить/выключить видео">
                 <i class="fas fa-video"></i>
             </button>
-            <button class="btn-call" id="toggle-audio">
+            <button class="btn-call" id="toggle-audio" title="Включить/выключить микрофон">
                 <i class="fas fa-microphone"></i>
             </button>
-            <button class="btn-call btn-end" id="end-call">
+            <button class="btn-call btn-end" id="end-call" title="Завершить звонок">
                 <i class="fas fa-phone-slash"></i>
             </button>
         </div>
@@ -208,13 +207,13 @@
     <!-- УВЕДОМЛЕНИЯ -->
     <div id="notification-container"></div>
 
-    <!-- FIREBASE -->
+    <!-- Firebase -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-storage-compat.js"></script>
     
-    <!-- СКРИПТ -->
+    <!-- Скрипт -->
     <script src="script.js"></script>
 </body>
 </html>
