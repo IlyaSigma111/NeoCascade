@@ -18,7 +18,9 @@ const googleProvider = new firebase.auth.GoogleAuthProvider();
 // ========== ПЕРЕМЕННЫЕ ==========
 let currentUser = null;
 let currentChat = 'general';
+let currentChannel = null;
 let currentTopic = null;
+let currentMessageForComment = null;
 let mediaRecorder = null;
 let audioChunks = [];
 let isRecording = false;
@@ -26,6 +28,16 @@ let activeCall = false;
 let localStream = null;
 let messageListener = null;
 let notificationsEnabled = false;
+let activeListeners = {};
+
+// Яндекс Телемост комнаты
+const TELEMOST_ROOMS = [
+    { id: 'room1', name: 'Гостиная', url: 'https://telemost.yandex.ru/j/85964605009487', users: 3 },
+    { id: 'room2', name: 'Игровая', url: 'https://telemost.yandex.ru/j/85625389138641', users: 5 },
+    { id: 'room3', name: 'Музыкальная', url: 'https://telemost.yandex.ru/j/73970146483392', users: 2 },
+    { id: 'room4', name: 'Кинотеатр', url: 'https://telemost.yandex.ru/j/07188908901264', users: 4 },
+    { id: 'room5', name: 'VIP комната', url: 'https://telemost.yandex.ru/j/28044634885213', users: 1 }
+];
 
 // ========== DOM ЭЛЕМЕНТЫ ==========
 const el = {
@@ -36,6 +48,8 @@ const el = {
     sendBtn: document.getElementById('send-btn'),
     chatList: document.getElementById('chat-list'),
     topicList: document.getElementById('topic-list'),
+    channelsList: document.getElementById('channels-list'),
+    voiceChannels: document.getElementById('voice-channels'),
     username: document.getElementById('username'),
     userStatus: document.getElementById('user-status'),
     userAvatar: document.getElementById('user-avatar'),
@@ -50,27 +64,41 @@ const el = {
     notificationContainer: document.getElementById('notification-container'),
     currentChatAvatar: document.getElementById('current-chat-avatar'),
     chatSearch: document.getElementById('chat-search'),
-    createTopicBtn: document.getElementById('create-topic-btn')
+    createTopicBtn: document.getElementById('create-topic-btn'),
+    createChannelBtn: document.getElementById('create-channel-btn'),
+    reactionPanel: document.getElementById('reaction-panel'),
+    commentsSection: document.getElementById('comments-section'),
+    commentsList: document.getElementById('comments-list'),
+    commentInput: document.getElementById('comment-input'),
+    sendCommentBtn: document.getElementById('send-comment-btn'),
+    closeComments: document.getElementById('close-comments')
 };
 
 // ========== ИНИЦИАЛИЗАЦИЯ ==========
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('🚀 NeoCascade Mega Glass запущен');
+    console.log('🚀 NeoCascade с каналами и комментариями запущен');
+    
     auth.onAuthStateChanged(handleAuthState);
     setupListeners();
     checkNotifications();
+    loadVoiceChannels();
+    
+    window.addEventListener('beforeunload', () => {
+        cleanupAllListeners();
+    });
 });
 
-// ========== ПРОВЕРКА УВЕДОМЛЕНИЙ ==========
-function checkNotifications() {
-    if ('Notification' in window) {
-        if (Notification.permission === 'granted') {
-            notificationsEnabled = true;
-        } else if (Notification.permission !== 'denied') {
-            Notification.requestPermission().then(permission => {
-                notificationsEnabled = permission === 'granted';
-            });
-        }
+// ========== ОЧИСТКА ВСЕХ СЛУШАТЕЛЕЙ ==========
+function cleanupAllListeners() {
+    Object.keys(activeListeners).forEach(key => {
+        const [path, event] = key.split('|');
+        db.ref(path).off(event, activeListeners[key]);
+    });
+    activeListeners = {};
+    
+    if (messageListener) {
+        db.ref(`chats/${currentChat}/messages`).off('value', messageListener);
+        messageListener = null;
     }
 }
 
@@ -82,7 +110,6 @@ function setupListeners() {
     document.getElementById('email-register-btn')?.addEventListener('click', handleEmailRegister);
     document.getElementById('admin-login-btn')?.addEventListener('click', handleAdminLogin);
     
-    // Переключение форм
     document.getElementById('show-register')?.addEventListener('click', (e) => {
         e.preventDefault();
         document.getElementById('login-form').style.display = 'none';
@@ -135,24 +162,167 @@ function setupListeners() {
     // Создание темы
     el.createTopicBtn?.addEventListener('click', createTopic);
     
+    // Создание канала
+    el.createChannelBtn?.addEventListener('click', createChannel);
+    
+    // Реакции
+    document.querySelectorAll('.reaction-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const emoji = e.currentTarget.dataset.emoji;
+            if (currentMessageForComment) {
+                addReaction(currentMessageForComment, emoji);
+                hideReactionPanel();
+            }
+        });
+    });
+    
+    // Комментарии
+    el.sendCommentBtn?.addEventListener('click', sendComment);
+    el.commentInput?.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            sendComment();
+        }
+    });
+    
+    el.closeComments?.addEventListener('click', () => {
+        el.commentsSection.style.display = 'none';
+        currentMessageForComment = null;
+    });
+    
     // Мобильное меню
     setupMobileMenu();
 }
 
-// ========== ПОИСК ==========
-function handleSearch(e) {
-    const query = e.target.value.toLowerCase();
-    const items = document.querySelectorAll('.chat-item');
+// ========== ЗАГРУЗКА ГОЛОСОВЫХ КАНАЛОВ ==========
+function loadVoiceChannels() {
+    if (!el.voiceChannels) return;
     
-    items.forEach(item => {
-        const name = item.querySelector('.chat-name')?.textContent.toLowerCase() || '';
-        if (name.includes(query)) {
-            item.style.display = 'flex';
-        } else {
-            item.style.display = 'none';
+    let html = '<div style="padding: 8px 16px;"><h4 style="margin-bottom: 12px; color: rgba(255,255,255,0.5);"><i class="fas fa-headphones" style="margin-right: 8px;"></i>ГОЛОСОВЫЕ КАНАЛЫ</h4></div>';
+    
+    TELEMOST_ROOMS.forEach(room => {
+        const userCount = room.users || Math.floor(Math.random() * 8) + 1;
+        const status = userCount > 0 ? 
+            `<span style="color: #34d399;">● ${userCount} слушают</span>` : 
+            `<span style="color: rgba(255,255,255,0.3);">○ пусто</span>`;
+        
+        html += `
+            <div class="voice-item" onclick="window.open('${room.url}', '_blank')">
+                <div class="voice-icon">
+                    <i class="fas fa-headphones"></i>
+                </div>
+                <div class="voice-info">
+                    <div class="voice-name">🎧 ${room.name}</div>
+                    <div class="voice-preview">${status}</div>
+                </div>
+                <button class="btn-icon" style="width: 32px; height: 32px;" onclick="event.stopPropagation(); window.open('${room.url}', '_blank')">
+                    <i class="fas fa-sign-in-alt"></i>
+                </button>
+            </div>
+        `;
+    });
+    
+    el.voiceChannels.innerHTML = html;
+}
+
+// ========== СОЗДАНИЕ КАНАЛА ==========
+async function createChannel() {
+    if (!currentUser) return;
+    
+    const channelName = prompt('Введите название канала:');
+    if (!channelName?.trim()) return;
+    
+    const channelDesc = prompt('Введите описание канала (необязательно):') || '';
+    
+    try {
+        const channelRef = db.ref('channels').push();
+        await channelRef.set({
+            name: channelName.trim(),
+            description: channelDesc,
+            createdBy: currentUser.uid,
+            createdAt: Date.now(),
+            members: { [currentUser.uid]: true },
+            posts: 0,
+            subscribers: 1
+        });
+        
+        showNotification('✅ Канал создан!', 'success');
+        loadChannels();
+    } catch (error) {
+        console.error('Channel error:', error);
+        showNotification('❌ Ошибка создания канала', 'error');
+    }
+}
+
+// ========== ЗАГРУЗКА КАНАЛОВ ==========
+function loadChannels() {
+    if (!currentUser) return;
+    
+    const channelsKey = 'channels|value';
+    if (activeListeners[channelsKey]) {
+        db.ref('channels').off('value', activeListeners[channelsKey]);
+    }
+    
+    const channelsListener = db.ref('channels').on('value', (snapshot) => {
+        const channels = snapshot.val();
+        if (!channels) {
+            el.channelsList.innerHTML = '<div style="padding: 16px; text-align: center; color: rgba(255,255,255,0.3);">Нет каналов</div>';
+            return;
+        }
+        
+        let html = '';
+        
+        Object.entries(channels).forEach(([id, channel]) => {
+            const isActive = currentChannel === id;
+            const activeClass = isActive ? 'active' : '';
+            
+            html += `
+                <div class="channel-item ${activeClass}" data-channel="${id}" onclick="selectChannel('${id}')">
+                    <div class="channel-icon">
+                        <i class="fas fa-bullhorn"></i>
+                    </div>
+                    <div class="channel-info">
+                        <div class="channel-name">${channel.name}</div>
+                        <div class="channel-stats">
+                            <span><i class="fas fa-user"></i> ${channel.subscribers || 0}</span>
+                            <span><i class="fas fa-file-alt"></i> ${channel.posts || 0}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        if (el.channelsList) {
+            el.channelsList.innerHTML = html;
         }
     });
+    
+    activeListeners[channelsKey] = channelsListener;
 }
+
+// ========== ВЫБОР КАНАЛА ==========
+window.selectChannel = function(channelId) {
+    currentChannel = channelId;
+    currentChat = `channel_${channelId}`;
+    currentTopic = null;
+    
+    document.querySelectorAll('.channel-item, .chat-item, .voice-item').forEach(i => i.classList.remove('active'));
+    document.querySelector(`[data-channel="${channelId}"]`)?.classList.add('active');
+    
+    db.ref(`channels/${channelId}`).once('value', (snap) => {
+        const channel = snap.val();
+        if (channel) {
+            el.chatTitle.textContent = `📢 ${channel.name}`;
+            el.chatStatus.innerHTML = `<span class="online">● ${channel.subscribers || 0} подписчиков</span>`;
+            el.currentChatAvatar.innerHTML = '<i class="fas fa-bullhorn"></i>';
+            
+            // Подписываемся на канал
+            db.ref(`channels/${channelId}/members/${currentUser.uid}`).set(true);
+            
+            loadMessages();
+        }
+    });
+};
 
 // ========== СОЗДАНИЕ ТЕМЫ ==========
 async function createTopic() {
@@ -173,6 +343,7 @@ async function createTopic() {
         showNotification('✅ Тема создана!', 'success');
         loadTopics();
     } catch (error) {
+        console.error('Topic error:', error);
         showNotification('❌ Ошибка создания темы', 'error');
     }
 }
@@ -181,20 +352,28 @@ async function createTopic() {
 function loadTopics() {
     if (!currentUser) return;
     
-    db.ref('topics').on('value', (snapshot) => {
+    const topicKey = 'topics|value';
+    if (activeListeners[topicKey]) {
+        db.ref('topics').off('value', activeListeners[topicKey]);
+    }
+    
+    const topicsListener = db.ref('topics').on('value', (snapshot) => {
         const topics = snapshot.val();
         if (!topics) return;
         
-        let html = '<div style="padding: 8px 16px;"><h4 style="margin-bottom: 12px; color: rgba(255,255,255,0.5);">📌 ТЕМЫ</h4></div>';
+        let html = '<div style="padding: 8px 16px;"><h4 style="margin-bottom: 12px; color: rgba(255,255,255,0.5);"><i class="fas fa-hashtag" style="margin-right: 8px;"></i>ТЕМЫ</h4></div>';
         
         Object.entries(topics).forEach(([id, topic]) => {
+            const isActive = currentTopic === id;
+            const activeClass = isActive ? 'active' : '';
+            
             html += `
-                <div class="chat-item" data-topic="${id}" onclick="selectTopic('${id}')">
-                    <div class="chat-icon" style="background: linear-gradient(135deg, #f59e0b, #d97706);">
+                <div class="chat-item ${activeClass}" data-topic="${id}" onclick="selectTopic('${id}')">
+                    <div class="chat-icon" style="background: linear-gradient(135deg, #fbbf24, #f59e0b);">
                         <i class="fas fa-hashtag"></i>
                     </div>
                     <div class="chat-info">
-                        <div class="chat-name">${topic.name}</div>
+                        <div class="chat-name"># ${topic.name}</div>
                         <div class="chat-preview">${topic.members ? Object.keys(topic.members).length : 0} участников</div>
                     </div>
                 </div>
@@ -205,23 +384,25 @@ function loadTopics() {
             el.topicList.innerHTML = html;
         }
     });
+    
+    activeListeners[topicKey] = topicsListener;
 }
 
 // ========== ВЫБОР ТЕМЫ ==========
 window.selectTopic = function(topicId) {
     currentTopic = topicId;
     currentChat = `topic_${topicId}`;
+    currentChannel = null;
+    
+    document.querySelectorAll('.chat-item, .channel-item, .voice-item').forEach(i => i.classList.remove('active'));
+    document.querySelector(`[data-topic="${topicId}"]`)?.classList.add('active');
     
     db.ref(`topics/${topicId}`).once('value', (snap) => {
         const topic = snap.val();
         if (topic) {
             el.chatTitle.textContent = `# ${topic.name}`;
-            el.chatStatus.innerHTML = '<span class="online">тема</span>';
+            el.chatStatus.innerHTML = '<span class="online">● тема</span>';
             el.currentChatAvatar.innerHTML = '<i class="fas fa-hashtag"></i>';
-            
-            // Обновляем активный класс
-            document.querySelectorAll('.chat-item').forEach(i => i.classList.remove('active'));
-            document.querySelector(`[data-topic="${topicId}"]`)?.classList.add('active');
             
             loadMessages();
         }
@@ -237,24 +418,7 @@ async function handleGoogleLogin() {
         btn.disabled = true;
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
         
-        const result = await auth.signInWithPopup(googleProvider);
-        const user = result.user;
-        
-        // Запрашиваем ник
-        const nickname = prompt('Введите ваш никнейм:', user.displayName || user.email.split('@')[0]);
-        const finalName = nickname?.trim() || user.email.split('@')[0];
-        
-        await user.updateProfile({ displayName: finalName });
-        
-        await db.ref(`users/${user.uid}`).set({
-            name: finalName,
-            email: user.email,
-            online: true,
-            lastSeen: Date.now(),
-            avatar: user.photoURL || null
-        });
-        
-        showNotification('👋 Добро пожаловать!', 'success');
+        await auth.signInWithRedirect(googleProvider);
         
     } catch (error) {
         console.error(error);
@@ -368,6 +532,8 @@ async function handleAdminLogin() {
 
 // ========== СОСТОЯНИЕ АВТОРИЗАЦИИ ==========
 async function handleAuthState(user) {
+    cleanupAllListeners();
+    
     if (user) {
         currentUser = user;
         
@@ -385,19 +551,24 @@ async function handleAuthState(user) {
             await userRef.update({ online: true, lastSeen: Date.now() });
         }
         
-        // Presence система
+        const sessionId = Date.now().toString();
+        sessionStorage.setItem('sessionId', sessionId);
+        
         const connectedRef = db.ref('.info/connected');
-        connectedRef.on('value', (snap) => {
+        const presenceListener = connectedRef.on('value', (snap) => {
             if (snap.val() === true) {
                 userRef.child('online').set(true);
+                userRef.child('session').set(sessionId);
                 userRef.child('online').onDisconnect().set(false);
+                userRef.child('session').onDisconnect().remove();
                 userRef.child('lastSeen').onDisconnect().set(Date.now());
             }
         });
         
-        // Обновление UI
+        activeListeners['.info/connected|value'] = presenceListener;
+        
         el.username.textContent = user.displayName || user.email.split('@')[0];
-        el.userStatus.textContent = 'в сети';
+        el.userStatus.innerHTML = '<i class="fas fa-circle" style="color: #34d399; font-size: 8px;"></i> в сети';
         el.userStatus.className = 'online';
         
         if (user.photoURL) {
@@ -413,10 +584,11 @@ async function handleAuthState(user) {
         el.loginModal.style.display = 'none';
         el.mainContainer.style.display = 'flex';
         
-        // Загрузка данных
+        // Загрузка всех данных
         loadMessages();
         loadContacts();
         loadTopics();
+        loadChannels();
         
         showNotification(`👋 Привет, ${user.displayName || 'друг'}!`, 'success');
         
@@ -425,10 +597,15 @@ async function handleAuthState(user) {
         el.loginModal.style.display = 'flex';
         el.mainContainer.style.display = 'none';
         
-        // Очистка слушателей
-        if (messageListener) {
-            db.ref(`chats/${currentChat}/messages`).off('value', messageListener);
-        }
+        cleanupAllListeners();
+        
+        el.messagesContainer.innerHTML = `
+            <div style="text-align: center; padding: 60px 20px;">
+                <i class="fas fa-water" style="font-size: 64px; color: var(--primary); margin-bottom: 16px; opacity: 0.5;"></i>
+                <h3 style="margin-bottom: 8px;">NeoCascade</h3>
+                <p style="color: rgba(255,255,255,0.5);">Войдите чтобы начать общение</p>
+            </div>
+        `;
     }
 }
 
@@ -436,21 +613,30 @@ async function handleAuthState(user) {
 function loadContacts() {
     if (!currentUser) return;
     
-    db.ref('users').on('value', (snapshot) => {
+    const contactsKey = 'users|value';
+    if (activeListeners[contactsKey]) {
+        db.ref('users').off('value', activeListeners[contactsKey]);
+    }
+    
+    const contactsListener = db.ref('users').on('value', (snapshot) => {
         const users = snapshot.val();
         if (!users) return;
         
-        let html = '<div style="padding: 8px 16px;"><h4 style="margin-bottom: 12px; color: rgba(255,255,255,0.5);">👥 КОНТАКТЫ</h4></div>';
+        let html = '<div style="padding: 8px 16px;"><h4 style="margin-bottom: 12px; color: rgba(255,255,255,0.5);"><i class="fas fa-users" style="margin-right: 8px;"></i>КОНТАКТЫ</h4></div>';
         
         Object.entries(users).forEach(([id, u]) => {
             if (id === currentUser.uid) return;
             
-            const status = u.online ? 
-                '<span class="online">● в сети</span>' : 
-                '<span class="offline">○ не в сети</span>';
+            const isActive = currentChat === id && !currentTopic && !currentChannel;
+            const activeClass = isActive ? 'active' : '';
+            
+            const isOnline = u.online && u.session;
+            const status = isOnline ? 
+                '<span style="color: #34d399;">● в сети</span>' : 
+                '<span style="color: rgba(255,255,255,0.3);">○ не в сети</span>';
             
             html += `
-                <div class="chat-item" data-chat="${id}">
+                <div class="chat-item ${activeClass}" data-chat="${id}">
                     <div class="chat-icon">
                         ${u.avatar ? 
                             `<img src="${u.avatar}" style="width:100%; height:100%; object-fit:cover;">` : 
@@ -465,31 +651,50 @@ function loadContacts() {
             `;
         });
         
-        // Сохраняем общий чат и добавляем контакты
         const generalChat = document.querySelector('.chat-item[data-chat="general"]');
-        el.chatList.innerHTML = (generalChat ? generalChat.outerHTML : '') + html;
+        const generalActive = currentChat === 'general' ? 'active' : '';
+        
+        if (generalChat) {
+            generalChat.className = `chat-item ${generalActive}`;
+        }
+        
+        el.chatList.innerHTML = (generalChat ? generalChat.outerHTML : `<div class="chat-item ${generalActive}" data-chat="general">
+            <div class="chat-icon general">
+                <i class="fas fa-globe"></i>
+            </div>
+            <div class="chat-info">
+                <div class="chat-name">Общий чат</div>
+                <div class="chat-preview">Добро пожаловать!</div>
+            </div>
+        </div>`) + html;
     });
+    
+    activeListeners[contactsKey] = contactsListener;
 }
 
 // ========== ВЫБОР ЧАТА ==========
 function selectChat(chatId) {
     currentChat = chatId;
     currentTopic = null;
+    currentChannel = null;
     
-    // Обновление активного класса
-    document.querySelectorAll('.chat-item').forEach(i => i.classList.remove('active'));
+    document.querySelectorAll('.chat-item, .channel-item, .voice-item').forEach(i => i.classList.remove('active'));
     document.querySelector(`.chat-item[data-chat="${chatId}"]`)?.classList.add('active');
     
     if (chatId === 'general') {
         el.chatTitle.textContent = 'Общий чат';
         el.chatStatus.innerHTML = '<span class="online">● 128 участников</span>';
         el.currentChatAvatar.innerHTML = '<i class="fas fa-globe"></i>';
+        
+        loadMessages();
     } else {
         db.ref(`users/${chatId}`).once('value', (s) => {
             const u = s.val();
             if (u) {
                 el.chatTitle.textContent = u.name || 'Пользователь';
-                el.chatStatus.innerHTML = u.online ? 
+                
+                const isOnline = u.online && u.session;
+                el.chatStatus.innerHTML = isOnline ? 
                     '<span class="online">● в сети</span>' : 
                     '<span class="offline">○ был(а) ' + formatLastSeen(u.lastSeen) + '</span>';
                 
@@ -498,11 +703,11 @@ function selectChat(chatId) {
                 } else {
                     el.currentChatAvatar.innerHTML = `<i class="fas fa-user"></i>`;
                 }
+                
+                loadMessages();
             }
         });
     }
-    
-    loadMessages();
 }
 
 // ========== ФОРМАТ ДАТЫ ==========
@@ -522,20 +727,39 @@ function formatLastSeen(timestamp) {
     return `${days} дн назад`;
 }
 
+// ========== ПОИСК ==========
+function handleSearch(e) {
+    const query = e.target.value.toLowerCase();
+    const items = document.querySelectorAll('.chat-item, .voice-item, .channel-item');
+    
+    items.forEach(item => {
+        const name = item.querySelector('.chat-name, .voice-name, .channel-name')?.textContent.toLowerCase() || '';
+        if (name.includes(query)) {
+            item.style.display = 'flex';
+        } else {
+            item.style.display = 'none';
+        }
+    });
+}
+
 // ========== ЗАГРУЗКА СООБЩЕНИЙ ==========
 function loadMessages() {
     if (!currentUser) return;
     
-    // Отключаем старый слушатель
     if (messageListener) {
         db.ref(`chats/${currentChat}/messages`).off('value', messageListener);
+        messageListener = null;
     }
     
-    messageListener = db.ref(`chats/${currentChat}/messages`)
+    const messagesRef = db.ref(`chats/${currentChat}/messages`);
+    
+    messageListener = messagesRef
         .limitToLast(50)
         .on('value', (snap) => {
             const data = snap.val();
             renderMessages(data);
+        }, (error) => {
+            console.error('Messages error:', error);
         });
 }
 
@@ -545,9 +769,9 @@ function renderMessages(data) {
     
     if (!data) {
         el.messagesContainer.innerHTML = `
-            <div class="welcome-message">
-                <i class="fas fa-water" style="font-size: 64px; color: var(--primary); margin-bottom: 16px;"></i>
-                <h3>Нет сообщений</h3>
+            <div style="text-align: center; padding: 60px 20px;">
+                <i class="fas fa-water" style="font-size: 64px; color: var(--primary); margin-bottom: 16px; opacity: 0.5;"></i>
+                <h3 style="margin-bottom: 8px;">Нет сообщений</h3>
                 <p style="color: rgba(255,255,255,0.5);">Напишите первое сообщение!</p>
             </div>
         `;
@@ -557,7 +781,7 @@ function renderMessages(data) {
     const messages = Object.values(data).sort((a, b) => a.timestamp - b.timestamp);
     
     messages.forEach(msg => {
-        const isSent = msg.senderId === currentUser.uid;
+        const isSent = msg.senderId === currentUser?.uid;
         const time = new Date(msg.timestamp).toLocaleTimeString('ru', {
             hour: '2-digit', 
             minute: '2-digit'
@@ -565,6 +789,29 @@ function renderMessages(data) {
         
         const messageEl = document.createElement('div');
         messageEl.className = `message ${isSent ? 'sent' : 'received'}`;
+        messageEl.dataset.messageId = msg.id;
+        
+        let reactionsHtml = '';
+        if (msg.reactions) {
+            reactionsHtml = '<div class="message-reactions">';
+            Object.entries(msg.reactions).forEach(([emoji, users]) => {
+                const count = Object.keys(users).length;
+                const userReacted = users[currentUser?.uid];
+                const activeClass = userReacted ? 'active' : '';
+                
+                reactionsHtml += `
+                    <span class="reaction-badge ${activeClass}" onclick="addReaction('${msg.id}', '${emoji}')">
+                        ${emoji} <span class="reaction-count">${count}</span>
+                    </span>
+                `;
+            });
+            reactionsHtml += '</div>';
+        }
+        
+        let commentsCount = 0;
+        if (msg.comments) {
+            commentsCount = Object.keys(msg.comments).length;
+        }
         
         if (msg.type === 'voice') {
             messageEl.innerHTML = `
@@ -574,39 +821,169 @@ function renderMessages(data) {
                     </button>
                     <span style="font-size: 12px;">🎤 ${msg.duration || 0} сек</span>
                 </div>
-                <div class="message-time">${time}</div>
+                <div class="message-footer">
+                    <span class="message-time">${time}</span>
+                </div>
+                ${reactionsHtml}
+                <div class="message-actions">
+                    <button class="message-action-btn" onclick="showReactionPanel('${msg.id}', event)">
+                        <i class="fas fa-smile"></i> Реакция
+                    </button>
+                    <button class="message-action-btn" onclick="showComments('${msg.id}')">
+                        <i class="fas fa-comment"></i> Комментарии ${commentsCount ? `(${commentsCount})` : ''}
+                    </button>
+                </div>
             `;
         } else {
             messageEl.innerHTML = `
                 <div class="message-content">${escapeHtml(msg.text || '')}</div>
-                <div class="message-time">${time}</div>
+                <div class="message-footer">
+                    <span class="message-time">${time}</span>
+                </div>
+                ${reactionsHtml}
+                <div class="message-actions">
+                    <button class="message-action-btn" onclick="showReactionPanel('${msg.id}', event)">
+                        <i class="fas fa-smile"></i> Реакция
+                    </button>
+                    <button class="message-action-btn" onclick="showComments('${msg.id}')">
+                        <i class="fas fa-comment"></i> Комментарии ${commentsCount ? `(${commentsCount})` : ''}
+                    </button>
+                </div>
             `;
-        }
-        
-        // Добавляем реакции (новый функционал)
-        if (msg.reactions) {
-            const reactionsDiv = document.createElement('div');
-            reactionsDiv.style.marginTop = '8px';
-            reactionsDiv.style.display = 'flex';
-            reactionsDiv.style.gap = '4px';
-            
-            Object.entries(msg.reactions).forEach(([emoji, users]) => {
-                const count = Object.keys(users).length;
-                reactionsDiv.innerHTML += `
-                    <span style="background: rgba(255,255,255,0.1); padding: 2px 8px; border-radius: 20px; font-size: 12px;">
-                        ${emoji} ${count}
-                    </span>
-                `;
-            });
-            
-            messageEl.appendChild(reactionsDiv);
         }
         
         el.messagesContainer.appendChild(messageEl);
     });
     
-    // Скролл вниз
     el.messagesContainer.scrollTop = el.messagesContainer.scrollHeight;
+}
+
+// ========== ПОКАЗ ПАНЕЛИ РЕАКЦИЙ ==========
+window.showReactionPanel = function(messageId, event) {
+    event.stopPropagation();
+    currentMessageForComment = messageId;
+    
+    const rect = event.target.getBoundingClientRect();
+    const panel = el.reactionPanel;
+    
+    panel.style.display = 'flex';
+    panel.style.left = rect.left + 'px';
+    panel.style.top = (rect.top - 50) + 'px';
+    
+    setTimeout(() => {
+        document.addEventListener('click', hideReactionPanel);
+    }, 100);
+};
+
+function hideReactionPanel() {
+    el.reactionPanel.style.display = 'none';
+    document.removeEventListener('click', hideReactionPanel);
+}
+
+// ========== ДОБАВЛЕНИЕ РЕАКЦИИ ==========
+window.addReaction = async function(messageId, emoji) {
+    if (!currentUser || !currentChat) return;
+    
+    try {
+        const reactionRef = db.ref(`chats/${currentChat}/messages/${messageId}/reactions/${emoji}/${currentUser.uid}`);
+        const snapshot = await reactionRef.once('value');
+        
+        if (snapshot.exists()) {
+            await reactionRef.remove();
+        } else {
+            await reactionRef.set(true);
+        }
+        
+        showNotification(`✅ Реакция ${snapshot.exists() ? 'убрана' : 'добавлена'}`, 'success');
+    } catch (error) {
+        console.error('Reaction error:', error);
+        showNotification('❌ Ошибка добавления реакции', 'error');
+    }
+};
+
+// ========== ПОКАЗ КОММЕНТАРИЕВ ==========
+window.showComments = async function(messageId) {
+    if (!currentUser) return;
+    
+    currentMessageForComment = messageId;
+    el.commentsSection.style.display = 'flex';
+    
+    // Загружаем комментарии
+    const commentsRef = db.ref(`chats/${currentChat}/messages/${messageId}/comments`);
+    
+    // Отключаем старый слушатель если есть
+    if (activeListeners[`comments_${messageId}`]) {
+        commentsRef.off('value', activeListeners[`comments_${messageId}`]);
+    }
+    
+    const commentsListener = commentsRef.on('value', (snap) => {
+        const comments = snap.val();
+        renderComments(comments);
+    });
+    
+    activeListeners[`comments_${messageId}`] = commentsListener;
+    
+    el.commentInput.focus();
+};
+
+// ========== ОТОБРАЖЕНИЕ КОММЕНТАРИЕВ ==========
+function renderComments(comments) {
+    if (!el.commentsList) return;
+    
+    el.commentsList.innerHTML = '';
+    
+    if (!comments) {
+        el.commentsList.innerHTML = '<div style="text-align: center; padding: 20px; color: rgba(255,255,255,0.3);">Нет комментариев</div>';
+        return;
+    }
+    
+    const sortedComments = Object.values(comments).sort((a, b) => a.timestamp - b.timestamp);
+    
+    sortedComments.forEach(comment => {
+        const time = new Date(comment.timestamp).toLocaleTimeString('ru', {
+            hour: '2-digit', 
+            minute: '2-digit'
+        });
+        
+        const commentEl = document.createElement('div');
+        commentEl.className = 'comment-item';
+        commentEl.innerHTML = `
+            <div class="comment-header">
+                <div class="comment-avatar">
+                    <i class="fas fa-user"></i>
+                </div>
+                <span class="comment-author">${escapeHtml(comment.author)}</span>
+                <span class="comment-time">${time}</span>
+            </div>
+            <div class="comment-text">${escapeHtml(comment.text)}</div>
+        `;
+        
+        el.commentsList.appendChild(commentEl);
+    });
+    
+    el.commentsList.scrollTop = el.commentsList.scrollHeight;
+}
+
+// ========== ОТПРАВКА КОММЕНТАРИЯ ==========
+async function sendComment() {
+    if (!currentUser || !currentMessageForComment || !el.commentInput.value.trim()) return;
+    
+    const text = el.commentInput.value.trim();
+    el.commentInput.value = '';
+    
+    try {
+        await db.ref(`chats/${currentChat}/messages/${currentMessageForComment}/comments`).push({
+            text: text,
+            author: currentUser.displayName || 'User',
+            authorId: currentUser.uid,
+            timestamp: Date.now()
+        });
+        
+        showNotification('✅ Комментарий добавлен', 'success');
+    } catch (error) {
+        console.error('Comment error:', error);
+        showNotification('❌ Ошибка добавления комментария', 'error');
+    }
 }
 
 // ========== ОТПРАВКА СООБЩЕНИЯ ==========
@@ -617,14 +994,31 @@ async function sendMessage() {
     el.messageInput.value = '';
     
     try {
-        await db.ref(`chats/${currentChat}/messages`).push({
+        const messageRef = db.ref(`chats/${currentChat}/messages`).push();
+        
+        await messageRef.set({
+            id: messageRef.key,
             text: text,
             senderId: currentUser.uid,
             senderName: currentUser.displayName || 'User',
             timestamp: Date.now(),
             type: 'text'
         });
+        
+        // Обновляем счетчик постов в канале
+        if (currentChannel) {
+            const channelRef = db.ref(`channels/${currentChannel}`);
+            const snap = await channelRef.once('value');
+            const channel = snap.val();
+            if (channel) {
+                await channelRef.update({
+                    posts: (channel.posts || 0) + 1,
+                    lastPost: Date.now()
+                });
+            }
+        }
     } catch (error) {
+        console.error('Send error:', error);
         showNotification('❌ Ошибка отправки', 'error');
     }
 }
@@ -652,10 +1046,17 @@ async function startVoiceRecording(e) {
                     
                     const filename = `voice_${Date.now()}_${currentUser.uid}.webm`;
                     const storageReference = storage.ref(`voice/${currentChat}/${filename}`);
-                    await storageReference.put(blob);
+                    
+                    await storageReference.put(blob, {
+                        contentType: 'audio/webm'
+                    });
+                    
                     const url = await storageReference.getDownloadURL();
                     
-                    await db.ref(`chats/${currentChat}/messages`).push({
+                    const messageRef = db.ref(`chats/${currentChat}/messages`).push();
+                    
+                    await messageRef.set({
+                        id: messageRef.key,
                         type: 'voice',
                         audioUrl: url,
                         senderId: currentUser.uid,
@@ -667,8 +1068,8 @@ async function startVoiceRecording(e) {
                     showNotification('✅ Голосовое отправлено', 'success');
                     
                 } catch (error) {
-                    console.error(error);
-                    showNotification('❌ Ошибка отправки', 'error');
+                    console.error('Upload error:', error);
+                    showNotification('❌ Ошибка загрузки', 'error');
                 }
             }
             
@@ -680,12 +1081,12 @@ async function startVoiceRecording(e) {
         el.voiceBtn.classList.add('recording');
         showNotification('🎤 Запись... Отпустите кнопку', 'info');
         
-        // Автостоп через 30 секунд
         setTimeout(() => {
             if (isRecording) stopVoiceRecording();
         }, 30000);
         
     } catch (error) {
+        console.error('Mic error:', error);
         showNotification('❌ Нет доступа к микрофону', 'error');
     }
 }
@@ -728,6 +1129,7 @@ async function startCall() {
         showNotification('📹 Звонок начат', 'success');
         
     } catch (error) {
+        console.error('Call error:', error);
         showNotification('❌ Нет доступа к камере/микрофону', 'error');
     }
 }
@@ -749,6 +1151,7 @@ async function joinCall() {
         showNotification('✅ Присоединились к звонку', 'success');
         
     } catch (error) {
+        console.error('Join error:', error);
         showNotification('❌ Ошибка подключения', 'error');
     }
 }
@@ -796,6 +1199,7 @@ async function handleLogout() {
     if (currentUser) {
         await db.ref(`users/${currentUser.uid}`).update({
             online: false,
+            session: null,
             lastSeen: Date.now()
         });
     }
@@ -804,6 +1208,9 @@ async function handleLogout() {
     
     await auth.signOut();
     currentUser = null;
+    
+    cleanupAllListeners();
+    
     el.loginModal.style.display = 'flex';
     el.mainContainer.style.display = 'none';
     showNotification('👋 Пока!', 'info');
@@ -828,7 +1235,6 @@ function setupMobileMenu() {
         }
     }, { passive: true });
     
-    // Закрытие по клику вне сайдбара
     document.addEventListener('click', (e) => {
         const sidebar = document.querySelector('.sidebar');
         const isClickInside = sidebar?.contains(e.target);
@@ -846,20 +1252,19 @@ function showNotification(msg, type = 'info') {
     const notification = document.createElement('div');
     notification.className = 'notification';
     
-    let icon = '📢';
-    if (type === 'success') icon = '✅';
-    if (type === 'error') icon = '❌';
-    if (type === 'warning') icon = '⚠️';
+    let icon = 'fa-info-circle';
+    if (type === 'success') icon = 'fa-check-circle';
+    if (type === 'error') icon = 'fa-exclamation-circle';
+    if (type === 'warning') icon = 'fa-exclamation-triangle';
     
     notification.innerHTML = `
-        <i class="fas ${getIconForType(type)}"></i>
+        <i class="fas ${icon}"></i>
         <span>${msg}</span>
     `;
     
-    // Цветовая индикация
-    if (type === 'error') notification.style.borderLeftColor = '#ef4444';
-    if (type === 'success') notification.style.borderLeftColor = '#10b981';
-    if (type === 'warning') notification.style.borderLeftColor = '#f59e0b';
+    if (type === 'error') notification.style.borderLeftColor = '#f87171';
+    if (type === 'success') notification.style.borderLeftColor = '#34d399';
+    if (type === 'warning') notification.style.borderLeftColor = '#fbbf24';
     
     el.notificationContainer.appendChild(notification);
     
@@ -868,7 +1273,6 @@ function showNotification(msg, type = 'info') {
         setTimeout(() => notification.remove(), 300);
     }, 3000);
     
-    // Системное уведомление
     if (notificationsEnabled && type !== 'info') {
         new Notification('NeoCascade', {
             body: msg,
@@ -877,12 +1281,16 @@ function showNotification(msg, type = 'info') {
     }
 }
 
-function getIconForType(type) {
-    switch(type) {
-        case 'success': return 'fa-check-circle';
-        case 'error': return 'fa-exclamation-circle';
-        case 'warning': return 'fa-exclamation-triangle';
-        default: return 'fa-info-circle';
+// ========== ПРОВЕРКА УВЕДОМЛЕНИЙ ==========
+function checkNotifications() {
+    if ('Notification' in window) {
+        if (Notification.permission === 'granted') {
+            notificationsEnabled = true;
+        } else if (Notification.permission !== 'denied') {
+            Notification.requestPermission().then(permission => {
+                notificationsEnabled = permission === 'granted';
+            });
+        }
     }
 }
 
