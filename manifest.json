@@ -1,11 +1,11 @@
 {
-    "name": "NeoCascade - Квантовый мессенджер",
+    "name": "NeoCascade - Мега-стекло мессенджер",
     "short_name": "NeoCascade",
-    "description": "Квантовое пространство для общения с друзьями",
+    "description": "Квантовое пространство для общения с эффектом стекла",
     "start_url": "/",
     "display": "standalone",
-    "background_color": "#030712",
-    "theme_color": "#3B82F6",
+    "background_color": "#0f0f1a",
+    "theme_color": "#8b5cf6",
     "orientation": "portrait-primary",
     "scope": "/",
     "categories": ["social", "communication"],
@@ -36,7 +36,7 @@
     ],
     "screenshots": [
         {
-            "src": "https://via.placeholder.com/1280x720/0F172A/3B82F6?text=NeoCascade+Chat",
+            "src": "https://via.placeholder.com/1280x720/0f0f1a/8b5cf6?text=NeoCascade+Glass",
             "sizes": "1280x720",
             "type": "image/png",
             "form_factor": "wide"
@@ -56,13 +56,13 @@
             ]
         },
         {
-            "name": "Лента активности",
-            "short_name": "Лента",
-            "description": "Смотреть ленту",
-            "url": "/?feed=true",
+            "name": "Создать тему",
+            "short_name": "Тема",
+            "description": "Создать новую тему",
+            "url": "/?create=topic",
             "icons": [
                 {
-                    "src": "https://img.icons8.com/fluency/96/000000/rss.png",
+                    "src": "https://img.icons8.com/fluency/96/000000/plus.png",
                     "sizes": "96x96"
                 }
             ]
